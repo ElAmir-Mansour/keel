@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Github, RefreshCw } from "lucide-react";
+import { GitBranch, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,7 +61,7 @@ export function GithubSettings() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={() => run("GitHub configured", async () => saveGithubConfig({ repos, token, autoStatus: auto }))} disabled={busy || !repos.trim()}>
-          <Github /> Save
+          <GitBranch /> Save
         </Button>
         {s.configured ? (
           <>
