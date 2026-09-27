@@ -20,9 +20,10 @@ export function MarkdownView({ body, className, onToggleTask }: { body: string; 
   // Line numbers of task items, so each rendered checkbox maps back to the
   // n-th task in the source without mutable render state.
   const taskLines = useMemo(() => {
-    const out: number[] = [];
+    const out: { line: number; checked: boolean }[] = [];
     body.split("\n").forEach((line, i) => {
-      if (TASK_LINE_RE.test(line)) out.push(i + 1);
+      const m = TASK_LINE_RE.exec(line);
+      if (m) out.push({ line: i + 1, checked: m[1] !== " " });
     });
     return out;
   }, [body]);
@@ -56,11 +57,12 @@ export function MarkdownView({ body, className, onToggleTask }: { body: string; 
           li: ({ className: cls, children, node, ...rest }) => {
             const isTask = cls?.includes("task-list-item");
             if (isTask) {
+              // The checked state comes from the source line, not the parsed
+              // tree: in a loose list the checkbox sits inside a <p>, so the
+              // first child is not the input.
               const line = node?.position?.start.line ?? -1;
-              const i = taskLines.indexOf(line);
-              // Find the checkbox child to read its checked state.
-              const first = node?.children?.[0];
-              const checked = first && first.type === "element" && first.tagName === "input" ? Boolean(first.properties?.checked) : false;
+              const i = taskLines.findIndex((t) => t.line === line);
+              const checked = i >= 0 ? taskLines[i].checked : false;
               return (
                 <li className={cn(cls, checked && "done")} {...rest}>
                   <input
