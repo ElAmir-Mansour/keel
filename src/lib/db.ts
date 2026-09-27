@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type {
   Decision,
+  Deletion,
   Issue,
   IssueEvent,
   Milestone,
@@ -27,9 +28,10 @@ export class KeelDB extends Dexie {
   people!: EntityTable<Person, "id">;
   updates!: EntityTable<Update, "id">;
   settings!: EntityTable<Setting, "key">;
+  deletions!: EntityTable<Deletion, "id">;
 
-  constructor() {
-    super("keel");
+  constructor(name = "keel") {
+    super(name);
     this.version(1).stores({
       projects: "id, key, status, updatedAt",
       milestones: "id, projectId, status, dueDate, order",
@@ -43,6 +45,20 @@ export class KeelDB extends Dexie {
       updates: "id, projectId, date",
       settings: "key",
     });
+    // v2: tombstones for sync, and people gain updatedAt.
+    this.version(2)
+      .stores({
+        people: "id, name, updatedAt",
+        deletions: "id, tbl, deletedAt",
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table("people")
+          .toCollection()
+          .modify((p: { createdAt: string; updatedAt?: string }) => {
+            if (!p.updatedAt) p.updatedAt = p.createdAt;
+          });
+      });
   }
 }
 
@@ -59,4 +75,19 @@ export const TABLE_NAMES = [
   "people",
   "updates",
   "settings",
+  "deletions",
 ] as const;
+
+/** Tables that take part in sync and backups (settings and tombstones are device-local). */
+export const SYNCED_TABLES = [
+  "projects",
+  "milestones",
+  "issues",
+  "issueEvents",
+  "decisions",
+  "notes",
+  "risks",
+  "people",
+  "updates",
+] as const;
+export type SyncedTable = (typeof SYNCED_TABLES)[number];

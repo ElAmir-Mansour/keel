@@ -11,6 +11,8 @@ import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { AiSettings } from "@/components/ai/ai-settings";
+import { SyncSettings } from "@/components/settings/sync-settings";
+import { BackupSettings } from "@/components/settings/backup-settings";
 import { PageHeader } from "@/components/ui-bits";
 import { useIsEmptyWorkspace } from "@/hooks/use-data";
 import { useMounted } from "@/hooks/use-mounted";
@@ -130,7 +132,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Appearance, your data, shortcuts and the AI assistant." />
+      <PageHeader title="Settings" description="Appearance, your data, backups, sync, shortcuts and the AI assistant." />
 
       <SettingsSection id="appearance" title="Appearance" description="Theme is remembered in this browser.">
         {mounted ? (
@@ -180,6 +182,14 @@ export function SettingsPage() {
           </Button>
         </div>
         {counts && !empty ? <p className="text-xs text-muted-foreground">Sample data can only be loaded into an empty workspace. Export, then clear all data, to try it.</p> : null}
+      </SettingsSection>
+
+      <SettingsSection id="backups" title="Automatic backups" description="A JSON copy of everything, written to a folder on a schedule while Keel is open.">
+        <BackupSettings />
+      </SettingsSection>
+
+      <SettingsSection id="sync" title="Sync across devices" description="Optional. Your own Supabase project holds an encrypted-in-transit copy; nothing is shared with anyone else.">
+        <SyncSettings />
       </SettingsSection>
 
       <SettingsSection id="shortcuts" title="Keyboard shortcuts" description="Single keys work whenever you are not typing in a field.">

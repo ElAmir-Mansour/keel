@@ -98,11 +98,11 @@ export async function seedSample() {
   const nowISO = now.toISOString();
 
   const people: Person[] = [
-    { id: id(), name: "Sara Haddad", role: "Backend engineer", color: "#2a78d6", createdAt: nowISO },
-    { id: id(), name: "Omar Khalil", role: "Frontend engineer", color: "#eb6834", createdAt: nowISO },
-    { id: id(), name: "Lina Farouk", role: "Platform / DevOps", color: "#1baf7a", createdAt: nowISO },
-    { id: id(), name: "Youssef Nasser", role: "QA engineer", color: "#eda100", createdAt: nowISO },
-    { id: id(), name: "Me", role: "Tech lead", color: "#4a3aa7", createdAt: nowISO },
+    { id: id(), name: "Sara Haddad", role: "Backend engineer", color: "#2a78d6", createdAt: nowISO, updatedAt: nowISO },
+    { id: id(), name: "Omar Khalil", role: "Frontend engineer", color: "#eb6834", createdAt: nowISO, updatedAt: nowISO },
+    { id: id(), name: "Lina Farouk", role: "Platform / DevOps", color: "#1baf7a", createdAt: nowISO, updatedAt: nowISO },
+    { id: id(), name: "Youssef Nasser", role: "QA engineer", color: "#eda100", createdAt: nowISO, updatedAt: nowISO },
+    { id: id(), name: "Me", role: "Tech lead", color: "#4a3aa7", createdAt: nowISO, updatedAt: nowISO },
   ];
   const me = people[4];
 
@@ -513,7 +513,7 @@ Agreed she leads audit and events ([[ADR-2]]); Omar picks up review of backend P
 
   await db.transaction(
     "rw",
-    [db.people, db.projects, db.milestones, db.issues, db.issueEvents, db.risks, db.decisions, db.notes, db.updates],
+    [db.people, db.projects, db.milestones, db.issues, db.issueEvents, db.risks, db.decisions, db.notes, db.updates, db.settings],
     async () => {
       await db.people.bulkAdd(people);
       await db.projects.bulkAdd([plat, bill]);
@@ -524,6 +524,8 @@ Agreed she leads audit and events ([[ADR-2]]); Omar picks up review of backend P
       await db.decisions.bulkAdd(decisions);
       await db.notes.bulkAdd([...docNotes, ...notes]);
       await db.updates.bulkAdd(updates);
+      // Sample records are back-dated; make the next sync a full merge.
+      await db.settings.where("key").startsWith("sync.cursor").delete();
     },
   );
   return { projects: 2, issues: issues.length };

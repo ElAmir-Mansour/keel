@@ -49,6 +49,35 @@ screen populated with eight weeks of realistic history.
 
 Requirements: Node 22+, pnpm 11.
 
+### Run it on your own machine, permanently
+
+Keel needs no server: the "server" only serves static files and the optional assistant route.
+To keep a production build running locally:
+
+```bash
+pnpm local
+```
+
+That builds once and serves at http://localhost:3456. Your data stays in that browser profile,
+so bookmark the address and keep using the same browser. Pair it with **Automatic backups**
+in Settings, which writes a JSON copy to a folder of your choice (a synced folder such as
+iCloud Drive or Dropbox works well) on a schedule.
+
+### Keep it safe: backups and sync
+
+Everything lives in your browser's IndexedDB. Two optional layers protect it:
+
+- **Automatic backups** (Settings → Automatic backups): pick a folder once; while Keel is open
+  it writes `keel-backup-<date>.json` on a schedule and keeps the newest copies. Chrome and
+  Edge only, because it uses the File System Access API; other browsers get a reminder and
+  the manual export.
+- **Sync across devices** (Settings → Sync): bring your own [Supabase](https://supabase.com)
+  project. Run [`supabase/schema.sql`](supabase/schema.sql) once in its SQL editor, enable
+  email sign-in, paste the project URL and anon key into Keel, and sign in with a magic link.
+  Each device keeps working offline and merges when online: last write wins per record, and
+  deletes travel too. Nothing is shared with anyone else; row-level security scopes every row
+  to your user.
+
 ### Deploy
 
 Keel is a plain Next.js app. On Vercel, import the repository and deploy; no environment
@@ -82,7 +111,6 @@ The research behind the feature choices is in [`docs/RESEARCH.md`](docs/RESEARCH
 
 ## Roadmap
 
-- Optional sync adapter (Supabase or a self-hosted Postgres) behind the same repository API.
 - Cycles with automatic roll-over, optional.
 - Arabic UI strings and a full RTL layout pass (content is already bidirectional).
 - Import from Linear and Jira exports; Obsidian vault import (folder of `.md`).

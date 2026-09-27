@@ -163,6 +163,14 @@ export interface Person {
   email?: string;
   color: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+/** Tombstone left behind by every delete so sync can propagate removals. */
+export interface Deletion {
+  id: string; // the deleted record's id
+  tbl: string; // its table name
+  deletedAt: string;
 }
 
 export interface Update {

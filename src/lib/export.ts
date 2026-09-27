@@ -1,5 +1,8 @@
 import { db, TABLE_NAMES } from "./db";
 
+/** Tables written to an export file: tombstones are device-local. */
+const EXPORTED = TABLE_NAMES.filter((t) => t !== "deletions");
+
 export const EXPORT_FORMAT = "keel/1";
 
 export interface ExportFile {
@@ -10,8 +13,8 @@ export interface ExportFile {
 
 export async function exportAll(): Promise<ExportFile> {
   const tables: Record<string, unknown[]> = {};
-  await db.transaction("r", TABLE_NAMES.map((t) => db.table(t)), async () => {
-    for (const t of TABLE_NAMES) tables[t] = await db.table(t).toArray();
+  await db.transaction("r", EXPORTED.map((t) => db.table(t)), async () => {
+    for (const t of EXPORTED) tables[t] = await db.table(t).toArray();
   });
   return { format: EXPORT_FORMAT, exportedAt: new Date().toISOString(), tables };
 }
@@ -34,11 +37,15 @@ export async function importAll(file: ExportFile, mode: "replace" | "merge" = "r
     throw new Error("Not a Keel export file");
   }
   await db.transaction("rw", TABLE_NAMES.map((t) => db.table(t)), async () => {
-    for (const t of TABLE_NAMES) {
+    for (const t of EXPORTED) {
       const rows = (file.tables[t] ?? []) as Record<string, unknown>[];
       if (mode === "replace") await db.table(t).clear();
       if (rows.length) await db.table(t).bulkPut(rows);
     }
+    // Imported records carry their original timestamps, which may predate the
+    // last sync; forgetting the cursors makes the next sync a full merge.
+    if (mode === "replace") await db.deletions.clear();
+    await db.settings.where("key").startsWith("sync.cursor").delete();
   });
 }
 

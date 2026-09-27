@@ -21,6 +21,13 @@ import type {
 
 const id = () => nanoid(12);
 
+/** Record a tombstone so a delete reaches other devices on the next sync. */
+async function tombstone(tbl: string, ids: string[]) {
+  if (!ids.length) return;
+  const deletedAt = nowISO();
+  await db.deletions.bulkPut(ids.map((rid) => ({ id: rid, tbl, deletedAt })));
+}
+
 // ----- projects ------------------------------------------------------------
 
 export async function createProject(
@@ -67,18 +74,20 @@ export async function deleteProject(pid: string) {
       db.notes,
       db.risks,
       db.updates,
+      db.deletions,
     ],
     async () => {
-      await db.milestones.where({ projectId: pid }).delete();
-      await db.issues.where({ projectId: pid }).delete();
-      await db.issueEvents.where({ projectId: pid }).delete();
-      await db.risks.where({ projectId: pid }).delete();
-      await db.updates.where({ projectId: pid }).delete();
+      for (const tbl of ["milestones", "issues", "issueEvents", "risks", "updates"] as const) {
+        const ids = await db[tbl].where({ projectId: pid }).primaryKeys();
+        await tombstone(tbl, ids as string[]);
+        await db[tbl].where({ projectId: pid }).delete();
+      }
       // Decisions and notes survive with the project link removed.
       await db.decisions
         .where({ projectId: pid })
         .modify({ projectId: undefined });
       await db.notes.where({ projectId: pid }).modify({ projectId: undefined });
+      await tombstone("projects", [pid]);
       await db.projects.delete(pid);
     },
   );
@@ -113,8 +122,9 @@ export async function updateMilestone(mid: string, patch: Partial<Milestone>) {
 }
 
 export async function deleteMilestone(mid: string) {
-  await db.transaction("rw", [db.milestones, db.issues], async () => {
-    await db.issues.where({ milestoneId: mid }).modify({ milestoneId: undefined });
+  await db.transaction("rw", [db.milestones, db.issues, db.deletions], async () => {
+    await db.issues.where({ milestoneId: mid }).modify({ milestoneId: undefined, updatedAt: nowISO() });
+    await tombstone("milestones", [mid]);
     await db.milestones.delete(mid);
   });
 }
@@ -218,8 +228,11 @@ export async function transitionIssue(
 }
 
 export async function deleteIssue(iid: string) {
-  await db.transaction("rw", [db.issues, db.issueEvents], async () => {
+  await db.transaction("rw", [db.issues, db.issueEvents, db.deletions], async () => {
+    const eventIds = (await db.issueEvents.where({ issueId: iid }).primaryKeys()) as string[];
+    await tombstone("issueEvents", eventIds);
     await db.issueEvents.where({ issueId: iid }).delete();
+    await tombstone("issues", [iid]);
     await db.issues.delete(iid);
   });
 }
@@ -288,7 +301,10 @@ export async function updateDecision(did: string, patch: Partial<Decision>) {
 }
 
 export async function deleteDecision(did: string) {
-  await db.decisions.delete(did);
+  await db.transaction("rw", [db.decisions, db.deletions], async () => {
+    await tombstone("decisions", [did]);
+    await db.decisions.delete(did);
+  });
 }
 
 // ----- notes ---------------------------------------------------------------
@@ -336,7 +352,10 @@ export async function updateNote(nid: string, patch: Partial<Note>) {
 }
 
 export async function deleteNote(nid: string) {
-  await db.notes.delete(nid);
+  await db.transaction("rw", [db.notes, db.deletions], async () => {
+    await tombstone("notes", [nid]);
+    await db.notes.delete(nid);
+  });
 }
 
 /** Return today's daily note, creating it if missing. */
@@ -394,7 +413,10 @@ export async function updateRisk(rid: string, patch: Partial<Risk>) {
 }
 
 export async function deleteRisk(rid: string) {
-  await db.risks.delete(rid);
+  await db.transaction("rw", [db.risks, db.deletions], async () => {
+    await tombstone("risks", [rid]);
+    await db.risks.delete(rid);
+  });
 }
 
 // ----- people --------------------------------------------------------------
@@ -402,27 +424,31 @@ export async function deleteRisk(rid: string) {
 export async function createPerson(
   input: Pick<Person, "name"> & Partial<Pick<Person, "role" | "email" | "color">>,
 ) {
+  const now = nowISO();
   const p: Person = {
     id: id(),
     name: input.name.trim(),
     role: input.role ?? "",
     email: input.email,
     color: input.color ?? "#2a78d6",
-    createdAt: nowISO(),
+    createdAt: now,
+    updatedAt: now,
   };
   await db.people.add(p);
   return p;
 }
 
 export async function updatePerson(pid: string, patch: Partial<Person>) {
-  await db.people.update(pid, patch);
+  await db.people.update(pid, { ...patch, updatedAt: nowISO() });
 }
 
 export async function deletePerson(pid: string) {
-  await db.transaction("rw", [db.people, db.issues, db.risks, db.projects], async () => {
-    await db.issues.where({ assigneeId: pid }).modify({ assigneeId: undefined });
-    await db.risks.where({ ownerId: pid }).modify({ ownerId: undefined });
-    await db.projects.where({ leadId: pid }).modify({ leadId: undefined });
+  await db.transaction("rw", [db.people, db.issues, db.risks, db.projects, db.deletions], async () => {
+    const now = nowISO();
+    await db.issues.where({ assigneeId: pid }).modify({ assigneeId: undefined, updatedAt: now });
+    await db.risks.where({ ownerId: pid }).modify({ ownerId: undefined, updatedAt: now });
+    await db.projects.where({ leadId: pid }).modify({ leadId: undefined, updatedAt: now });
+    await tombstone("people", [pid]);
     await db.people.delete(pid);
   });
 }
@@ -448,7 +474,10 @@ export async function postUpdate(input: {
 }
 
 export async function deleteUpdate(uid: string) {
-  await db.updates.delete(uid);
+  await db.transaction("rw", [db.updates, db.deletions], async () => {
+    await tombstone("updates", [uid]);
+    await db.updates.delete(uid);
+  });
 }
 
 // ----- settings ------------------------------------------------------------
