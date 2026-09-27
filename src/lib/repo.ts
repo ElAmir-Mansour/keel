@@ -3,6 +3,7 @@ import { db } from "./db";
 import { nowISO, todayYMD } from "./dates";
 import { noteFolder } from "./types";
 import type {
+  Cycle,
   Decision,
   Health,
   Issue,
@@ -12,6 +13,7 @@ import type {
   Person,
   Project,
   Risk,
+  SavedView,
   Update,
 } from "./types";
 
@@ -492,4 +494,45 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 
 export async function setSetting(key: string, value: unknown) {
   await db.settings.put({ key, value });
+}
+
+// ----- cycles --------------------------------------------------------------
+
+export async function createCycle(input: Pick<Cycle, "projectId" | "startDate" | "endDate"> & Partial<Pick<Cycle, "status" | "number">>) {
+  return db.transaction("rw", db.cycles, async () => {
+    const now = nowISO();
+    const last = await db.cycles.where({ projectId: input.projectId }).toArray();
+    const number = input.number ?? last.reduce((m, c) => Math.max(m, c.number), 0) + 1;
+    const c: Cycle = { id: id(), projectId: input.projectId, number, startDate: input.startDate, endDate: input.endDate, status: input.status ?? "upcoming", createdAt: now, updatedAt: now };
+    await db.cycles.add(c);
+    return c;
+  });
+}
+
+export async function updateCycle(cid: string, patch: Partial<Cycle>) {
+  await db.cycles.update(cid, { ...patch, updatedAt: nowISO() });
+}
+
+export async function deleteCycle(cid: string) {
+  await db.transaction("rw", [db.cycles, db.issues, db.deletions], async () => {
+    await db.issues.where({ cycleId: cid }).modify({ cycleId: undefined, updatedAt: nowISO() });
+    await tombstone("cycles", [cid]);
+    await db.cycles.delete(cid);
+  });
+}
+
+// ----- saved views ----------------------------------------------------------
+
+export async function saveView(input: Pick<SavedView, "name" | "params"> & { projectId?: string }) {
+  const now = nowISO();
+  const v: SavedView = { id: id(), projectId: input.projectId, name: input.name.trim() || "Untitled view", params: input.params, createdAt: now, updatedAt: now };
+  await db.views.add(v);
+  return v;
+}
+
+export async function deleteView(vid: string) {
+  await db.transaction("rw", [db.views, db.deletions], async () => {
+    await tombstone("views", [vid]);
+    await db.views.delete(vid);
+  });
 }

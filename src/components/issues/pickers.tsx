@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { AlertTriangle, CalendarDays, Diamond, Hash, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, CalendarRange, Diamond, Hash, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { usePeople } from "@/hooks/use-data";
 import { fmtDate, fmtShort, isOverdue } from "@/lib/dates";
 import { transitionIssue, updateIssue } from "@/lib/repo";
-import { ISSUE_STATUSES, PRIORITIES, type Issue, type IssueStatus, type Milestone, type Priority } from "@/lib/types";
+import { ISSUE_STATUSES, PRIORITIES, type Cycle, type Issue, type IssueStatus, type Milestone, type Priority } from "@/lib/types";
 import { PersonAvatar, PriorityIcon, StatusIcon, priorityLabel, statusLabel } from "@/components/ui-bits";
 import { safeWrite } from "./issue-utils";
 
@@ -168,6 +168,39 @@ export function MilestonePicker({ issue, milestones, full, className }: PickerPr
             <DropdownMenuRadioItem key={m.id} value={m.id}>
               <Diamond className={m.status === "done" ? "text-[var(--viz-good)]" : "text-[var(--viz-ordinal-3)]"} />
               <span className="truncate" dir="auto">{m.title}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function CyclePicker({ issue, cycles, full, className }: PickerProps & { cycles: Cycle[] }) {
+  const open = [...cycles].filter((c) => c.status !== "done").sort((a, b) => a.number - b.number);
+  const current = cycles.find((c) => c.id === issue.cycleId);
+  const label = current ? `Cycle ${current.number}${current.status === "active" ? " · current" : current.status === "upcoming" ? " · next" : ""}` : "No cycle";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <PickerButton full={full} className={className} icon={<CalendarRange className={cn("size-3.5", current ? "text-[var(--viz-series-1)]" : "text-muted-foreground")} />} label={label} muted={full && !current} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuRadioGroup
+          value={issue.cycleId ?? NONE}
+          onValueChange={(v) => {
+            const next = v === NONE ? undefined : v;
+            if (next !== issue.cycleId) void safeWrite(() => updateIssue(issue.id, { cycleId: next }));
+          }}
+        >
+          <DropdownMenuRadioItem value={NONE}>
+            <CalendarRange className="text-muted-foreground" /> No cycle
+          </DropdownMenuRadioItem>
+          {open.length ? <DropdownMenuSeparator /> : null}
+          {open.map((c) => (
+            <DropdownMenuRadioItem key={c.id} value={c.id}>
+              <CalendarRange className={c.status === "active" ? "text-[var(--viz-series-1)]" : "text-muted-foreground"} />
+              Cycle {c.number} · {c.status === "active" ? "current" : "next"}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

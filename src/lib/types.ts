@@ -4,6 +4,11 @@
 export type ProjectStatus = "active" | "paused" | "done" | "archived";
 export type Health = "on_track" | "at_risk" | "off_track";
 
+export interface CycleConfig {
+  enabled: boolean;
+  lengthWeeks: 1 | 2 | 3 | 4;
+}
+
 export interface Project {
   id: string;
   key: string; // short uppercase key, e.g. "KEEL" → issues read KEEL-12
@@ -13,6 +18,31 @@ export interface Project {
   status: ProjectStatus;
   targetDate?: string; // YYYY-MM-DD
   leadId?: string;
+  /** Optional fixed-length cycles; unfinished work rolls over automatically. */
+  cycleConfig?: CycleConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CycleStatus = "upcoming" | "active" | "done";
+
+export interface Cycle {
+  id: string;
+  projectId: string;
+  number: number;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD, inclusive
+  status: CycleStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A saved set of issue-list filters, per project or global. */
+export interface SavedView {
+  id: string;
+  projectId?: string;
+  name: string;
+  params: string; // URL query string
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +78,7 @@ export interface Issue {
   projectId: string;
   seq: number; // per-project sequence → KEY-seq
   milestoneId?: string;
+  cycleId?: string;
   title: string;
   description: string;
   status: IssueStatus;

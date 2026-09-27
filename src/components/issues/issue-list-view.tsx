@@ -12,7 +12,8 @@ import { useUi } from "@/lib/ui-store";
 import { EmptyState } from "@/components/ui-bits";
 import { IssueRow } from "./issue-row";
 import { IssueFilters, applyIssueFilters, groupIssues, useIssueFilters } from "./issue-filters";
-import { DONE_WINDOW_DAYS, issueHref, useProjectIssues, useProjectMilestones } from "./issue-utils";
+import { DONE_WINDOW_DAYS, issueHref, useProjectCycles, useProjectIssues, useProjectMilestones } from "./issue-utils";
+import { SavedViews } from "./saved-views";
 import { useListNav } from "./use-list-nav";
 
 export function IssueListView() {
@@ -22,10 +23,12 @@ export function IssueListView() {
   const project = useProject(id);
   const issues = useProjectIssues(id);
   const milestones = useProjectMilestones(id);
+  const cycles = useProjectCycles(id);
   const people = usePeople();
   const { filters, set, clear, active } = useIssueFilters();
+  const activeCycleId = useMemo(() => cycles.find((c) => c.status === "active")?.id, [cycles]);
 
-  const visible = useMemo(() => applyIssueFilters(issues, filters, project), [issues, filters, project]);
+  const visible = useMemo(() => applyIssueFilters(issues, filters, project, activeCycleId), [issues, filters, project, activeCycleId]);
   const groups = useMemo(() => groupIssues(visible, filters.group, { milestones, people }), [visible, filters.group, milestones, people]);
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
   const milestoneById = useMemo(() => new Map(milestones.map((m) => [m.id, m])), [milestones]);
@@ -43,7 +46,8 @@ export function IssueListView() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <IssueFilters milestones={milestones} people={people} />
+        <IssueFilters milestones={milestones} people={people} cycles={project?.cycleConfig?.enabled ? cycles : []} />
+        <SavedViews projectId={id} />
         <div className="ms-auto flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>

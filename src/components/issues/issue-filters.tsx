@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ISSUE_STATUSES,
   PRIORITIES,
+  type Cycle,
   type Issue,
   type IssueStatus,
   type Milestone,
@@ -37,6 +38,7 @@ export interface IssueFilterState {
   priority: Priority[];
   assignee: string; // "", "none" or a person id
   milestone: string; // "", "none" or a milestone id
+  cycle: string; // "", "none", "active" or a cycle id
   group: GroupBy;
   done: boolean;
 }
@@ -59,6 +61,7 @@ function parseFilters(sp: URLSearchParams): IssueFilterState {
     priority: list("priority").filter((p) => PRIORITY_VALUES.has(p)) as Priority[],
     assignee: sp.get("assignee") ?? "",
     milestone: sp.get("milestone") ?? "",
+    cycle: sp.get("cycle") ?? "",
     group: GROUPS.some((g) => g.value === group) ? (group as GroupBy) : "none",
     done: sp.get("done") === "1",
   };
@@ -79,6 +82,7 @@ export function useIssueFilters() {
       if (patch.priority) put("priority", patch.priority.join(","));
       if (patch.assignee !== undefined) put("assignee", patch.assignee);
       if (patch.milestone !== undefined) put("milestone", patch.milestone);
+      if (patch.cycle !== undefined) put("cycle", patch.cycle);
       if (patch.group !== undefined) put("group", patch.group === "none" ? "" : patch.group);
       if (patch.done !== undefined) put("done", patch.done ? "1" : "");
       const qs = next.toString();
@@ -89,21 +93,23 @@ export function useIssueFilters() {
 
   const clear = useCallback(() => {
     const next = new URLSearchParams(sp.toString());
-    for (const k of ["q", "status", "priority", "assignee", "milestone"]) next.delete(k);
+    for (const k of ["q", "status", "priority", "assignee", "milestone", "cycle"]) next.delete(k);
     const qs = next.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [sp, router, pathname]);
 
   const active =
-    (filters.q ? 1 : 0) + (filters.status.length ? 1 : 0) + (filters.priority.length ? 1 : 0) + (filters.assignee ? 1 : 0) + (filters.milestone ? 1 : 0);
+    (filters.q ? 1 : 0) + (filters.status.length ? 1 : 0) + (filters.priority.length ? 1 : 0) + (filters.assignee ? 1 : 0) + (filters.milestone ? 1 : 0) + (filters.cycle ? 1 : 0);
 
   return { filters, set, clear, active };
 }
 
 /** Apply the URL filters. Without a status filter, old done and cancelled issues stay hidden unless `done` is on. */
-export function applyIssueFilters(issues: Issue[], f: IssueFilterState, project?: Pick<Project, "key"> | null) {
+export function applyIssueFilters(issues: Issue[], f: IssueFilterState, project?: Pick<Project, "key"> | null, activeCycleId?: string) {
   const q = f.q.trim().toLowerCase();
+  const cycle = f.cycle === "active" ? (activeCycleId ?? "__none__") : f.cycle;
   return issues.filter((i) => {
+    if (cycle === "none" ? i.cycleId : cycle && i.cycleId !== cycle) return false;
     if (i.status === "triage") return false;
     if (f.status.length) {
       if (!f.status.includes(i.status)) return false;
@@ -161,17 +167,20 @@ export function groupIssues(issues: Issue[], by: GroupBy, ctx: { milestones: Mil
   return groups;
 }
 
-type Field = "q" | "status" | "priority" | "assignee" | "milestone" | "group";
-const ALL_FIELDS: Field[] = ["q", "status", "priority", "assignee", "milestone", "group"];
+type Field = "q" | "status" | "priority" | "assignee" | "milestone" | "cycle" | "group";
+const ALL_FIELDS: Field[] = ["q", "status", "priority", "assignee", "milestone", "cycle", "group"];
 
 export function IssueFilters({
   milestones,
   people,
+  cycles = [],
   fields = ALL_FIELDS,
   className,
 }: {
   milestones: Milestone[];
   people: Person[];
+  /** When the project has cycles, a cycle filter appears. */
+  cycles?: Cycle[];
   fields?: Field[];
   className?: string;
 }) {
@@ -256,6 +265,26 @@ export function IssueFilters({
                 <Diamond className="text-[var(--viz-ordinal-3)]" /> <span dir="auto">{m.title}</span>
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+      {has("cycle") && cycles.length ? (
+        <Select value={filters.cycle || "__any"} onValueChange={(v) => set({ cycle: v === "__any" ? "" : v })}>
+          <SelectTrigger size="sm" className={cn("h-7 max-w-40 text-xs", filters.cycle && "border-foreground/40")} aria-label="Cycle">
+            <SelectValue placeholder="Cycle" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__any">Any cycle</SelectItem>
+            <SelectItem value="active">Current cycle</SelectItem>
+            <SelectItem value="none">Not in a cycle</SelectItem>
+            {[...cycles]
+              .sort((a, b) => b.number - a.number)
+              .slice(0, 12)
+              .map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  Cycle {c.number} · {c.status}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
       ) : null}

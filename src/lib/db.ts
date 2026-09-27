@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type {
   CodeLink,
+  Cycle,
   Decision,
   Deletion,
   Embedding,
@@ -11,6 +12,7 @@ import type {
   Person,
   Project,
   Risk,
+  SavedView,
   Setting,
   Update,
 } from "./types";
@@ -33,6 +35,8 @@ export class KeelDB extends Dexie {
   deletions!: EntityTable<Deletion, "id">;
   embeddings!: EntityTable<Embedding, "id">;
   codeLinks!: EntityTable<CodeLink, "id">;
+  cycles!: EntityTable<Cycle, "id">;
+  views!: EntityTable<SavedView, "id">;
 
   constructor(name = "keel") {
     super(name);
@@ -71,6 +75,13 @@ export class KeelDB extends Dexie {
     this.version(4).stores({
       codeLinks: "id, issueId, projectId, kind, updatedAt",
     });
+    // v5: cycles with roll-over, saved views, and a cycle index on issues.
+    this.version(5).stores({
+      issues:
+        "id, projectId, [projectId+seq], milestoneId, cycleId, status, priority, assigneeId, dueDate, updatedAt, completedAt, createdAt",
+      cycles: "id, projectId, number, status, startDate, updatedAt",
+      views: "id, projectId, updatedAt",
+    });
   }
 }
 
@@ -90,6 +101,8 @@ export const TABLE_NAMES = [
   "deletions",
   "embeddings",
   "codeLinks",
+  "cycles",
+  "views",
 ] as const;
 
 /** Tables that take part in sync and backups (settings and tombstones are device-local). */
@@ -103,5 +116,7 @@ export const SYNCED_TABLES = [
   "risks",
   "people",
   "updates",
+  "cycles",
+  "views",
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];

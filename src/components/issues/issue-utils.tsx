@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { db } from "@/lib/db";
-import { PRIORITIES, type Issue, type IssueEvent, type Milestone, type Priority } from "@/lib/types";
+import { PRIORITIES, type Cycle, type Issue, type IssueEvent, type Milestone, type Priority } from "@/lib/types";
 
 // Reads and small pure helpers shared by the issue pages. Writes still go
 // through repo.ts; safeWrite only turns a failed write into a toast.
@@ -27,6 +27,10 @@ export function useProjectMilestones(projectId?: string) {
     [projectId],
     EMPTY as Milestone[],
   );
+}
+
+export function useProjectCycles(projectId?: string) {
+  return useLiveQuery(() => (projectId ? db.cycles.where({ projectId }).toArray() : []), [projectId], [] as Cycle[]);
 }
 
 export function useIssueEvents(issueId?: string) {

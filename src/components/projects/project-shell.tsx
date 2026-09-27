@@ -35,6 +35,7 @@ export function projectTabs(id: string) {
     { href: `${base}/issues`, label: "Issues" },
     { href: `${base}/board`, label: "Board" },
     { href: `${base}/roadmap`, label: "Roadmap" },
+    { href: `${base}/cycles`, label: "Cycles" },
     { href: `${base}/risks`, label: "Risks" },
     { href: `${base}/updates`, label: "Updates" },
     { href: `${base}/notes`, label: "Notes" },
