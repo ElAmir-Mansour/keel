@@ -37,6 +37,7 @@ export function MarkdownView({ body, className, onToggleTask }: { body: string; 
         urlTransform={(url) => (url.startsWith("wiki:") ? url : defaultUrlTransform(url))}
         components={{
           a: ({ href, children, node: _node, ...rest }) => {
+            void _node; // hast node: not a DOM attribute
             if (href?.startsWith("wiki:")) {
               const target = decodeURIComponent(href.slice(5));
               const r = resolveLink(target, idx);
