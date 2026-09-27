@@ -1,0 +1,123 @@
+// Tools the assistant may propose. Shared by the route (definitions sent to
+// the model) and the browser (execution after the person approves). Schemas
+// are strict: additionalProperties false, every listed property required.
+
+export interface AiToolDef {
+  name: string;
+  description: string;
+  input_schema: {
+    type: "object";
+    properties: Record<string, unknown>;
+    required: string[];
+    additionalProperties: false;
+  };
+}
+
+const PRIORITY = { type: "string", enum: ["none", "low", "medium", "high", "urgent"] };
+const STATUS = { type: "string", enum: ["triage", "backlog", "todo", "in_progress", "in_review", "done", "cancelled"] };
+const NULLABLE_STRING = { type: ["string", "null"] };
+
+export const AI_TOOLS: AiToolDef[] = [
+  {
+    name: "create_issues",
+    description:
+      "Propose new issues in a project. Use when the user asks to create, add, capture or turn something into issues or tasks. The person approves before anything is written.",
+    input_schema: {
+      type: "object",
+      properties: {
+        projectKey: { ...NULLABLE_STRING, description: "Project key such as PLAT; null to use the attached or first active project." },
+        issues: {
+          type: "array",
+          maxItems: 20,
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Imperative, specific, under 80 characters, in the user's language." },
+              description: NULLABLE_STRING,
+              priority: { ...PRIORITY, description: "Only when the user signals urgency; otherwise none." },
+              dueDate: { ...NULLABLE_STRING, description: "YYYY-MM-DD or null." },
+              status: { ...STATUS, description: "Usually backlog; todo when the user says it is next." },
+            },
+            required: ["title", "description", "priority", "dueDate", "status"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["projectKey", "issues"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "log_decision",
+    description: "Propose a decision record (ADR) when the user states or asks to log a decision. Fill context, decision and consequences from what was said; never invent.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        context: { type: "string", description: "Why a decision was needed; markdown." },
+        decision: { type: "string", description: "What was decided, stated as a fact; markdown." },
+        consequences: { type: "string", description: "What becomes easier or harder; markdown, may be short." },
+        alternatives: { ...NULLABLE_STRING, description: "Options rejected and why, or null." },
+        projectKey: NULLABLE_STRING,
+        status: { type: "string", enum: ["proposed", "accepted"] },
+      },
+      required: ["title", "context", "decision", "consequences", "alternatives", "projectKey", "status"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "create_note",
+    description: "Propose a new note in the vault (meeting notes, a page, a draft). Use [[wikilinks]] to existing notes, issues (PLAT-12) and decisions (ADR-3) in the body.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        body: { type: "string", description: "Markdown body." },
+        kind: { type: "string", enum: ["page", "daily", "meeting", "oneonone", "retro", "quick", "prd", "rfc", "runbook", "postmortem", "weekly"] },
+        projectKey: NULLABLE_STRING,
+        tags: { type: "array", items: { type: "string" } },
+      },
+      required: ["title", "body", "kind", "projectKey", "tags"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "update_issue",
+    description: "Propose a change to an existing issue identified by its key (PLAT-12): status, priority, assignee name or due date. Leave a field null to keep it.",
+    input_schema: {
+      type: "object",
+      properties: {
+        key: { type: "string", description: "Issue key such as PLAT-12." },
+        status: { type: ["string", "null"], enum: ["triage", "backlog", "todo", "in_progress", "in_review", "done", "cancelled", null] },
+        priority: { type: ["string", "null"], enum: ["none", "low", "medium", "high", "urgent", null] },
+        assignee: { ...NULLABLE_STRING, description: "Person's name as it appears in the workspace, or null." },
+        dueDate: { ...NULLABLE_STRING, description: "YYYY-MM-DD, or null." },
+      },
+      required: ["key", "status", "priority", "assignee", "dueDate"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "add_risk",
+    description: "Propose a RAID entry (risk, assumption, issue or dependency) for a project with likelihood and impact from 1 to 5.",
+    input_schema: {
+      type: "object",
+      properties: {
+        projectKey: NULLABLE_STRING,
+        title: { type: "string" },
+        kind: { type: "string", enum: ["risk", "assumption", "issue", "dependency"] },
+        likelihood: { type: "integer", minimum: 1, maximum: 5 },
+        impact: { type: "integer", minimum: 1, maximum: 5 },
+        mitigation: { ...NULLABLE_STRING, description: "Markdown, or null." },
+      },
+      required: ["projectKey", "title", "kind", "likelihood", "impact", "mitigation"],
+      additionalProperties: false,
+    },
+  },
+];
+
+export const AI_TOOL_NAMES = AI_TOOLS.map((t) => t.name);
+
+export function toolByName(name: string) {
+  return AI_TOOLS.find((t) => t.name === name);
+}

@@ -11,7 +11,9 @@ How to answer:
 - Be concise: short paragraphs and bullets, no preamble, no restating the question. Use markdown.
 - Refer to issues by key (PLAT-12), decisions as ADR-n and notes as [[Title]] so they become links.
 - Keep the user's language. If the note or the question is in Arabic, answer in Arabic; otherwise answer in English. Do not mix languages unless the source does.
-- Dates are ISO (YYYY-MM-DD). Today's date is in the context.`;
+- Dates are ISO (YYYY-MM-DD). Today's date is in the context.
+- When vault excerpts are numbered, cite the ones you used as [n] right after the claim, like "reviews queue behind one person [2]". Cite only numbers that exist.
+- When the user asks you to create, add, log, update or capture something, propose it with the matching tool instead of describing it. The person approves each proposal before anything is written, so propose freely but never claim something was created until the tool result says so. If no tool fits, say what you would need.`;
 
 export function buildSystem(context: string) {
   return `${SYSTEM_PROMPT}\n\n# Context\n\n${context.trim() || "(empty workspace)"}`;

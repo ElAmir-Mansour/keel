@@ -26,16 +26,20 @@ import { db } from "@/lib/db";
 import { updateNote } from "@/lib/repo";
 import { useUi, type AiRequest } from "@/lib/ui-store";
 import { cn } from "@/lib/utils";
-import { AiError, streamChat, useAiModel } from "@/lib/ai/client";
+import { AiError, streamTurn, useAiModel } from "@/lib/ai/client";
+import { executeToolCall } from "@/lib/ai/actions";
+import { AI_TOOL_NAMES } from "@/lib/ai/tools";
+import { SourceList, ToolCallCards, withCitations, type ToolCallState } from "@/components/ai/ai-tools";
 import {
   CONTEXT_BUDGET,
   fitBudget,
   noteContext,
   projectContext,
-  vaultRetrieval,
+  vaultRetrievalWithSources,
+  type Source,
   workspaceOverview,
 } from "@/lib/ai/context";
-import { modelLabel, type AiChatMessage, type AiErrorCode } from "@/lib/ai/models";
+import { modelLabel, type AiChatMessage, type AiContentBlock, type AiErrorCode } from "@/lib/ai/models";
 import { ACTION_LABELS, ACTION_PROMPTS, buildSystem, type AiAction } from "@/lib/ai/prompts";
 import { MarkdownView } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +81,12 @@ interface Msg {
   status: MsgStatus;
   error?: { code: AiErrorCode; message: string };
   excerptChars?: number;
+  /** Length of the wire history when this user turn started; retry truncates to it. */
+  wireIndex?: number;
+  /** Actions the model proposed in this turn. */
+  toolCalls?: ToolCallState[];
+  /** Numbered vault excerpts the answer may cite. */
+  sources?: Source[];
 }
 
 interface PendingAction {
@@ -124,6 +134,11 @@ export function AiPanel() {
   const [pending, setPending] = useState<PendingAction | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  // The exact conversation sent to the model (tool blocks included); the
+  // transcript above is what people read.
+  const wireRef = useRef<AiChatMessage[]>([]);
+  const callsRef = useRef<Map<string, ToolCallState[]>>(new Map());
+  const waitersRef = useRef<Map<string, (blocks: AiContentBlock[]) => void>>(new Map());
   const messagesRef = useRef(messages);
   const searchRef = useRef(searchVault);
   useEffect(() => {
@@ -145,6 +160,53 @@ export function AiPanel() {
     }
   }
 
+  const patch = useCallback((id: string, p: Partial<Msg>) => setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...p } : m))), []);
+
+  /** Settle one proposed action; when the turn's last one settles, the model gets the results. */
+  const decide = useCallback(
+    async (asstId: string, callId: string, choice: "apply" | "skip") => {
+      const calls = callsRef.current.get(asstId);
+      const call = calls?.find((c) => c.id === callId);
+      if (!calls || !call || call.status !== "pending") return;
+      const msg = messagesRef.current.find((m) => m.id === asstId);
+      const mirror = () => patch(asstId, { toolCalls: calls.map((c) => ({ ...c })) });
+      if (choice === "skip") {
+        call.status = "skipped";
+        call.result = "Skipped by the user.";
+      } else {
+        call.status = "running";
+        mirror();
+        try {
+          call.result = await executeToolCall(call, { projectId: msg?.projectId });
+          call.status = "applied";
+          toast.success(call.result);
+        } catch (err) {
+          call.status = "failed";
+          call.result = err instanceof Error ? err.message : String(err);
+        }
+      }
+      mirror();
+      if (calls.every((c) => c.status !== "pending" && c.status !== "running")) {
+        const blocks: AiContentBlock[] = calls.map((c) => ({
+          type: "tool_result",
+          tool_use_id: c.id,
+          content: c.result ?? "",
+          ...(c.status === "failed" || c.status === "skipped" ? { is_error: true } : {}),
+        }));
+        waitersRef.current.get(asstId)?.(blocks);
+      }
+    },
+    [patch],
+  );
+
+  const decideAll = useCallback(
+    async (asstId: string, choice: "apply" | "skip") => {
+      const calls = callsRef.current.get(asstId) ?? [];
+      for (const c of calls) if (c.status === "pending") await decide(asstId, c.id, choice);
+    },
+    [decide],
+  );
+
   const run = useCallback(async (action: AiAction, prompt: string, ids: Attach) => {
     if (abortRef.current) return;
     if (action !== "ask" && action !== "weekly" && !ids.noteId) {
@@ -160,72 +222,91 @@ export function AiPanel() {
     setBusy(true);
 
     const userId = nanoid(8);
-    const asstId = nanoid(8);
-    const history: AiChatMessage[] = messagesRef.current
-      .filter((m) => (m.status === "done" || m.status === "stopped") && (m.sent ?? m.content).trim())
-      .map((m) => ({ role: m.role, content: m.sent ?? m.content }));
-    setMessages((prev) => [
-      ...prev,
-      { id: userId, role: "user", content: action === "ask" ? prompt : ACTION_LABELS[action], action, status: "done" },
-      { id: asstId, role: "assistant", content: "", action, noteId: ids.noteId, projectId: ids.projectId, status: "streaming" },
-    ]);
-    const patch = (id: string, p: Partial<Msg>) =>
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...p } : m)));
+    const wireStart = wireRef.current.length;
+    setMessages((prev) => [...prev, { id: userId, role: "user", content: action === "ask" ? prompt : ACTION_LABELS[action], action, status: "done", wireIndex: wireStart }]);
 
-    // Deltas are batched per animation-ish tick so react-markdown is not
-    // re-parsed for every token.
-    let buffer = "";
-    let timer: number | null = null;
-    const flush = () => {
-      timer = null;
-      if (!buffer) return;
-      const chunk = buffer;
-      buffer = "";
-      setMessages((prev) => prev.map((m) => (m.id === asstId ? { ...m, content: m.content + chunk } : m)));
-    };
-    const onDelta = (t: string) => {
-      buffer += t;
-      if (timer === null) timer = window.setTimeout(flush, 40);
-    };
-    const flushNow = () => {
-      if (timer !== null) window.clearTimeout(timer);
-      flush();
-    };
-
+    let asstId = "";
     try {
       const c = await buildContext(ids);
       setCtx(c);
       let sent = action === "ask" ? prompt : ACTION_PROMPTS[action];
+      let sources: Source[] = [];
       if (action === "ask" && searchRef.current) {
-        const excerpts = await vaultRetrieval(prompt);
-        if (excerpts) {
-          sent = `${excerpts}\n\n---\n\nQuestion: ${prompt}`;
-          patch(userId, { excerptChars: excerpts.length });
+        const r = await vaultRetrievalWithSources(prompt);
+        if (r) {
+          sent = `${r.text}\n\n---\n\nQuestion: ${prompt}`;
+          sources = r.sources;
+          patch(userId, { excerptChars: r.text.length });
         }
       }
       patch(userId, { sent });
+      wireRef.current.push({ role: "user", content: sent });
       if (controller.signal.aborted) throw new AiError("aborted", "Stopped.");
-      await streamChat(
-        {
-          system: buildSystem(c.text),
-          messages: [...history, { role: "user", content: sent }],
-          json: action === "tasks",
-          signal: controller.signal,
-        },
-        onDelta,
-      );
-      flushNow();
-      patch(asstId, { status: "done" });
+      const tools = action === "ask" ? AI_TOOL_NAMES : undefined;
+
+      // Up to five model turns: a turn that proposes actions waits for the
+      // person's decisions, sends the results back, and continues.
+      for (let iter = 0; iter < 5; iter += 1) {
+        asstId = nanoid(8);
+        setMessages((prev) => [...prev, { id: asstId, role: "assistant", content: "", action, noteId: ids.noteId, projectId: ids.projectId, status: "streaming", sources }]);
+        // Deltas are batched per tick so react-markdown is not re-parsed per token.
+        let buffer = "";
+        let timer: number | null = null;
+        const target = asstId;
+        const flush = () => {
+          timer = null;
+          if (!buffer) return;
+          const chunk = buffer;
+          buffer = "";
+          setMessages((prev) => prev.map((m) => (m.id === target ? { ...m, content: m.content + chunk } : m)));
+        };
+        const flushNow = () => {
+          if (timer !== null) window.clearTimeout(timer);
+          flush();
+        };
+        let turn;
+        try {
+          turn = await streamTurn(
+            { system: buildSystem(c.text), messages: wireRef.current, json: action === "tasks", tools, signal: controller.signal },
+            {
+              onText: (t) => {
+                buffer += t;
+                if (timer === null) timer = window.setTimeout(flush, 40);
+              },
+            },
+          );
+        } finally {
+          flushNow();
+        }
+        wireRef.current.push({ role: "assistant", content: turn.blocks.length ? turn.blocks : turn.text || "(no answer)" });
+        if (turn.stopReason === "tool_use" && turn.toolCalls.length) {
+          const calls: ToolCallState[] = turn.toolCalls.map((tc) => ({ ...tc, status: "pending" }));
+          callsRef.current.set(asstId, calls);
+          patch(asstId, { status: "done", toolCalls: calls.map((x) => ({ ...x })) });
+          const results = await new Promise<AiContentBlock[]>((resolve, reject) => {
+            waitersRef.current.set(asstId, resolve);
+            controller.signal.addEventListener("abort", () => reject(new AiError("aborted", "Stopped.")), { once: true });
+          });
+          waitersRef.current.delete(asstId);
+          wireRef.current.push({ role: "user", content: results });
+          continue;
+        }
+        patch(asstId, { status: "done" });
+        break;
+      }
     } catch (err) {
-      flushNow();
       const e = err instanceof AiError ? err : new AiError("server_error", "Something went wrong.");
-      if (e.code === "aborted") patch(asstId, { status: "stopped" });
-      else patch(asstId, { status: "error", error: { code: e.code, message: e.message } });
+      if (asstId) {
+        if (e.code === "aborted") patch(asstId, { status: "stopped" });
+        else patch(asstId, { status: "error", error: { code: e.code, message: e.message } });
+      } else {
+        setMessages((prev) => [...prev, { id: nanoid(8), role: "assistant", content: "", action, status: "error", error: { code: e.code, message: e.message } }]);
+      }
     } finally {
       abortRef.current = null;
       setBusy(false);
     }
-  }, []);
+  }, [patch]);
 
   // Kick off a queued action once the request has been applied. Deferred a
   // tick so the effect starts a job rather than re-rendering synchronously,
@@ -251,16 +332,21 @@ export function AiPanel() {
 
   function newChat() {
     stop();
+    wireRef.current = [];
+    callsRef.current.clear();
     setMessages([]);
   }
 
   function retry(asstId: string) {
     const list = messagesRef.current;
     const i = list.findIndex((m) => m.id === asstId);
-    const user = i > 0 ? list[i - 1] : undefined;
+    let u = i - 1;
+    while (u >= 0 && list[u].role !== "user") u -= 1;
+    const user = u >= 0 ? list[u] : undefined;
     const asst = list[i];
-    if (!user || user.role !== "user") return;
-    setMessages(list.filter((_, j) => j !== i && j !== i - 1));
+    if (!user) return;
+    wireRef.current = wireRef.current.slice(0, user.wireIndex ?? 0);
+    setMessages(list.slice(0, u));
     void run(user.action, user.content, { noteId: asst.noteId, projectId: asst.projectId });
   }
 
@@ -287,6 +373,8 @@ export function AiPanel() {
             stop={stop}
             retry={retry}
             newChat={newChat}
+            decide={decide}
+            decideAll={decideAll}
           />
         ) : null}
       </SheetContent>
@@ -310,10 +398,12 @@ interface PanelBodyProps {
   stop: () => void;
   retry: (asstId: string) => void;
   newChat: () => void;
+  decide: (asstId: string, callId: string, choice: "apply" | "skip") => Promise<void>;
+  decideAll: (asstId: string, choice: "apply" | "skip") => Promise<void>;
 }
 
 function PanelBody(p: PanelBodyProps) {
-  const { messages, attach, setAttach, searchVault, setSearchVault, draft, setDraft, ctx, busy, run, stop, retry, newChat } = p;
+  const { messages, attach, setAttach, searchVault, setSearchVault, draft, setDraft, ctx, busy, run, stop, retry, newChat, decide, decideAll } = p;
   const model = useAiModel();
   const note = useLiveQuery(() => (attach.noteId ? db.notes.get(attach.noteId) : undefined), [attach.noteId]);
   const project = useLiveQuery(() => (attach.projectId ? db.projects.get(attach.projectId) : undefined), [attach.projectId]);
@@ -446,7 +536,7 @@ function PanelBody(p: PanelBodyProps) {
               m.role === "user" ? (
                 <UserMessage key={m.id} m={m} />
               ) : (
-                <AssistantMessage key={m.id} m={m} onRetry={() => retry(m.id)} />
+                <AssistantMessage key={m.id} m={m} onRetry={() => retry(m.id)} onDecide={(id, choice) => void decide(m.id, id, choice)} onDecideAll={(choice) => void decideAll(m.id, choice)} />
               ),
             )}
           </div>
@@ -547,7 +637,7 @@ function UserMessage({ m }: { m: Msg }) {
   );
 }
 
-function AssistantMessage({ m, onRetry }: { m: Msg; onRetry: () => void }) {
+function AssistantMessage({ m, onRetry, onDecide, onDecideAll }: { m: Msg; onRetry: () => void; onDecide: (callId: string, choice: "apply" | "skip") => void; onDecideAll: (choice: "apply" | "skip") => void }) {
   const streaming = m.status === "streaming";
   let body: React.ReactNode = null;
   if (m.action === "tasks") {
@@ -557,9 +647,11 @@ function AssistantMessage({ m, onRetry }: { m: Msg; onRetry: () => void }) {
       <TasksProposal raw={m.content} noteId={m.noteId} projectId={m.projectId} />
     ) : null;
   } else if (m.content) {
-    body = <MarkdownView body={m.content} className="text-sm" />;
+    body = <MarkdownView body={m.sources?.length && !streaming ? withCitations(m.content, m.sources) : m.content} className="text-sm" />;
   } else if (streaming) {
     body = <Thinking label="Thinking…" />;
+  } else if (m.toolCalls?.length) {
+    body = null;
   }
 
   return (
@@ -572,8 +664,10 @@ function AssistantMessage({ m, onRetry }: { m: Msg; onRetry: () => void }) {
       {streaming && m.content && m.action !== "tasks" ? (
         <span className="inline-block h-4 w-1.5 animate-pulse bg-foreground/60 align-middle" aria-hidden />
       ) : null}
+      {m.toolCalls?.length ? <ToolCallCards calls={m.toolCalls} onDecide={onDecide} onDecideAll={onDecideAll} disabled={m.status === "stopped"} /> : null}
+      {m.status === "done" && m.content && m.sources?.length ? <SourceList sources={m.sources} /> : null}
       {m.error ? <ErrorNote error={m.error} onRetry={onRetry} /> : null}
-      {m.status === "done" && m.content ? <ResultActions m={m} /> : null}
+      {m.status === "done" && m.content && !m.toolCalls?.length ? <ResultActions m={m} /> : null}
     </div>
   );
 }

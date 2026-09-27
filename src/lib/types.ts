@@ -166,6 +166,18 @@ export interface Person {
   updatedAt: string;
 }
 
+/** One embedded chunk of a note, issue or decision (semantic search index). */
+export interface Embedding {
+  id: string; // kind:recordId:chunk
+  kind: "note" | "issue" | "decision";
+  recordId: string;
+  chunk: number;
+  title: string;
+  text: string;
+  version: string; // the record's updatedAt when embedded
+  vector: Float32Array;
+}
+
 /** Tombstone left behind by every delete so sync can propagate removals. */
 export interface Deletion {
   id: string; // the deleted record's id

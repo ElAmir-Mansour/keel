@@ -10,6 +10,7 @@ import {
   type AiModelId,
   type AiRequestBody,
 } from "./models";
+import { TurnAccumulator, type ToolCall, type TurnResult } from "./turn";
 
 // Browser side of the assistant: the key and model live in localStorage (never
 // in IndexedDB, so they stay out of the JSON export), and every call goes
@@ -95,6 +96,15 @@ export interface StreamChatOptions {
   json?: boolean;
   maxTokens?: number;
   signal?: AbortSignal;
+  /** Tool names the model may call this turn. */
+  tools?: string[];
+}
+
+export type { ToolCall, TurnResult } from "./turn";
+
+export interface TurnHandlers {
+  onText?: (delta: string) => void;
+  onToolCall?: (call: ToolCall) => void;
 }
 
 function isAbort(err: unknown) {
@@ -136,10 +146,10 @@ async function errorFromResponse(res: Response) {
 }
 
 /**
- * POST to the route and read the text stream, calling onDelta per chunk.
- * Resolves with the full text; throws AiError (code "aborted" when stopped).
+ * POST one turn and read the event stream. Resolves with the full turn;
+ * throws AiError (code "aborted" when stopped).
  */
-export async function streamChat(opts: StreamChatOptions, onDelta: (text: string) => void): Promise<string> {
+export async function streamTurn(opts: StreamChatOptions, handlers: TurnHandlers = {}): Promise<TurnResult> {
   const key = getApiKey();
   const body: AiRequestBody = {
     model: opts.model ?? getModel(),
@@ -147,6 +157,7 @@ export async function streamChat(opts: StreamChatOptions, onDelta: (text: string
     messages: opts.messages,
     json: opts.json,
     maxTokens: opts.maxTokens,
+    tools: opts.tools,
   };
   let res: Response;
   try {
@@ -163,29 +174,30 @@ export async function streamChat(opts: StreamChatOptions, onDelta: (text: string
   if (!res.ok) throw await errorFromResponse(res);
   if (!res.body) throw new AiError("server_error", "Empty response from the server.");
 
+  const acc = new TurnAccumulator(handlers);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let full = "";
   try {
     for (;;) {
       const { value, done } = await reader.read();
       if (done) break;
-      const text = decoder.decode(value, { stream: true });
-      if (text) {
-        full += text;
-        onDelta(text);
-      }
+      acc.feed(decoder.decode(value, { stream: true }));
     }
-    const rest = decoder.decode();
-    if (rest) {
-      full += rest;
-      onDelta(rest);
-    }
+    acc.feed(decoder.decode());
   } catch (err) {
     if (isAbort(err)) throw new AiError("aborted", "Stopped.");
     throw new AiError("network", "The connection dropped mid-response.");
   }
-  return full;
+  const result = acc.finish();
+  const streamError = acc.error;
+  if (streamError && !result.text && !result.toolCalls.length) throw new AiError("server_error", streamError);
+  return result;
+}
+
+/** Text-only convenience: streams deltas and resolves with the full text. */
+export async function streamChat(opts: StreamChatOptions, onDelta: (text: string) => void): Promise<string> {
+  const r = await streamTurn(opts, { onText: onDelta });
+  return r.text;
 }
 
 /** Whether this deployment lets the operator's server-side key serve requests without a personal key. */

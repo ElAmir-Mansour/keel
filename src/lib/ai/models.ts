@@ -25,10 +25,19 @@ export const STORAGE_KEYS = { apiKey: "keel.ai.apiKey", model: "keel.ai.model" }
 
 export type AiChatRole = "user" | "assistant";
 
-/** One turn on the wire: plain text only, a strict subset of the SDK's MessageParam. */
+// Content blocks on the wire: the subset of the Messages API the app uses.
+// Thinking blocks are echoed back untouched so a tool-use turn can continue.
+export type AiContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean }
+  | { type: "thinking"; thinking: string; signature: string }
+  | { type: "redacted_thinking"; data: string };
+
+/** One turn on the wire: plain text, or content blocks for tool use. */
 export interface AiChatMessage {
   role: AiChatRole;
-  content: string;
+  content: string | AiContentBlock[];
 }
 
 export interface AiRequestBody {
@@ -38,7 +47,18 @@ export interface AiRequestBody {
   maxTokens?: number;
   /** Ask for JSON only. The route appends the instruction so a client cannot forget it. */
   json?: boolean;
+  /** Names of tools from the shared registry the model may call this turn. */
+  tools?: string[];
 }
+
+/** Events the route streams back as newline-delimited JSON. */
+export type AiStreamEvent =
+  | { t: "text"; d: string }
+  | { t: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { t: "thinking"; thinking: string; signature: string }
+  | { t: "redacted_thinking"; data: string }
+  | { t: "stop"; reason: string | null }
+  | { t: "error"; message: string };
 
 export const AI_ERROR_CODES = [
   "no_api_key",

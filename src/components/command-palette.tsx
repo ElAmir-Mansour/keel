@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   AlertTriangle,
@@ -30,6 +30,7 @@ import { useUi } from "@/lib/ui-store";
 import { exportAll, downloadJSON } from "@/lib/export";
 import { todayYMD } from "@/lib/dates";
 import { ProjectDot } from "@/components/ui-bits";
+import { semanticReady, semanticSearch, type SemanticHit } from "@/lib/ai/semantic";
 
 export const NAV = [
   { href: "/", label: "Home", icon: Home, key: "h" },
@@ -61,6 +62,29 @@ export function CommandPalette() {
 
   const hits = useMemo(() => searchAll(q, { notes, issues, decisions, projects }), [q, notes, issues, decisions, projects]);
 
+  // Meaning-based matches, when the on-device index is on. Debounced so the
+  // model is not asked on every keystroke.
+  const [related, setRelated] = useState<SemanticHit[]>([]);
+  useEffect(() => {
+    if (!paletteOpen || q.trim().length < 3 || !semanticReady()) return;
+    let alive = true;
+    const t = setTimeout(() => {
+      void semanticSearch(q, 5).then((r) => {
+        if (alive) setRelated(r.filter((h) => !hits.some((x) => x.id === h.recordId)));
+      });
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [q, paletteOpen, hits]);
+  const relatedHref = (h: SemanticHit) => {
+    if (h.kind === "note") return `/notes/${h.recordId}`;
+    if (h.kind === "decision") return `/decisions/${h.recordId}`;
+    const i = issues.find((x) => x.id === h.recordId);
+    return i ? `/projects/${i.projectId}/issues/${i.seq}` : "/inbox";
+  };
+
   function go(href: string) {
     setOpen(false);
     router.push(href);
@@ -72,7 +96,7 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={paletteOpen} onOpenChange={setOpen} title="Command palette" description="Search notes, issues and decisions, or run a command" className="sm:max-w-xl">
-      <Command shouldFilter={!q.trim() || hits.length === 0} loop>
+      <Command shouldFilter={!q.trim() || (hits.length === 0 && related.length === 0)} loop>
         <CommandInput placeholder="Search or type a command…" value={q} onValueChange={setQ} />
         <CommandList className="max-h-[60vh]">
           <CommandEmpty>Nothing found.</CommandEmpty>
@@ -83,6 +107,17 @@ export function CommandPalette() {
                   {h.kind === "note" ? <FileText /> : h.kind === "issue" ? <CircleDot /> : h.kind === "decision" ? <Scale /> : <FolderKanban />}
                   <span className="truncate">{h.title}</span>
                   <span className="ms-auto truncate text-xs text-muted-foreground">{h.subtitle}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : null}
+          {q.trim().length >= 3 && related.length ? (
+            <CommandGroup heading="Related by meaning">
+              {related.map((h) => (
+                <CommandItem key={"sem" + h.recordId} value={`sem-${h.recordId}`} onSelect={() => go(relatedHref(h))}>
+                  {h.kind === "note" ? <FileText /> : h.kind === "issue" ? <CircleDot /> : <Scale />}
+                  <span className="truncate">{h.title}</span>
+                  <span className="ms-auto text-xs text-muted-foreground">{Math.round(h.score * 100)}%</span>
                 </CommandItem>
               ))}
             </CommandGroup>

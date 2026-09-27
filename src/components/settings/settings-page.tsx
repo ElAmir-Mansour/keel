@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { AiSettings } from "@/components/ai/ai-settings";
 import { SyncSettings } from "@/components/settings/sync-settings";
 import { ImportSettings } from "@/components/settings/import-settings";
+import { DigestSettings } from "@/components/settings/digest-settings";
+import { SemanticSettings } from "@/components/settings/semantic-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { PageHeader } from "@/components/ui-bits";
 import { useIsEmptyWorkspace } from "@/hooks/use-data";
@@ -228,6 +230,14 @@ export function SettingsPage() {
 
       <SettingsSection id="ai" title="AI assistant" description="Optional. Nothing is sent anywhere until you ask it something.">
         <AiSettings />
+      </SettingsSection>
+
+      <SettingsSection id="digest" title="Weekly digest" description="A note per week across all active projects, written on the day you choose.">
+        <DigestSettings />
+      </SettingsSection>
+
+      <SettingsSection id="semantic" title="Semantic search" description="Optional, on-device. Search and the assistant find notes by meaning.">
+        <SemanticSettings />
       </SettingsSection>
 
       <SettingsSection id="about" title="About">

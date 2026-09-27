@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type {
   Decision,
   Deletion,
+  Embedding,
   Issue,
   IssueEvent,
   Milestone,
@@ -29,6 +30,7 @@ export class KeelDB extends Dexie {
   updates!: EntityTable<Update, "id">;
   settings!: EntityTable<Setting, "key">;
   deletions!: EntityTable<Deletion, "id">;
+  embeddings!: EntityTable<Embedding, "id">;
 
   constructor(name = "keel") {
     super(name);
@@ -59,6 +61,10 @@ export class KeelDB extends Dexie {
             if (!p.updatedAt) p.updatedAt = p.createdAt;
           });
       });
+    // v3: the semantic index (device-local, rebuilt on demand).
+    this.version(3).stores({
+      embeddings: "id, recordId, kind, version",
+    });
   }
 }
 
@@ -76,6 +82,7 @@ export const TABLE_NAMES = [
   "updates",
   "settings",
   "deletions",
+  "embeddings",
 ] as const;
 
 /** Tables that take part in sync and backups (settings and tombstones are device-local). */

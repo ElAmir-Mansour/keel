@@ -1,5 +1,6 @@
 import { subDays } from "date-fns";
 import { db } from "@/lib/db";
+import { semanticReady, semanticSearch } from "./semantic";
 import { todayYMD } from "@/lib/dates";
 import { isOpen, milestoneProgress } from "@/lib/metrics";
 import {
@@ -252,16 +253,32 @@ export function queryTerms(query: string) {
 }
 
 interface Doc {
+  id: string;
   kind: "Note" | "Issue" | "Decision";
   title: string;
   subtitle: string;
   tags: string[];
   body: string;
+  /** What a [[wikilink]] to this record resolves through. */
+  link: string;
+}
+
+export interface Source {
+  n: number;
+  kind: "Note" | "Issue" | "Decision";
+  title: string;
+  /** Wikilink target: the note title, PLAT-12 or ADR-3. */
+  link: string;
 }
 
 export async function vaultRetrieval(query: string, k = 8, budget = 6_000): Promise<string | null> {
+  return (await vaultRetrievalWithSources(query, k, budget))?.text ?? null;
+}
+
+/** Excerpts numbered [1]…[k] so the answer can cite them, plus the source list. */
+export async function vaultRetrievalWithSources(query: string, k = 8, budget = 6_000): Promise<{ text: string; sources: Source[] } | null> {
   const terms = queryTerms(query);
-  if (!terms.length) return null;
+  if (!terms.length && !semanticReady()) return null;
   const [notes, issues, decisions, projects] = await Promise.all([
     db.notes.toArray(),
     db.issues.toArray(),
@@ -270,23 +287,27 @@ export async function vaultRetrieval(query: string, k = 8, budget = 6_000): Prom
   ]);
   const byId = new Map(projects.map((p) => [p.id, p]));
   const docs: Doc[] = [
-    ...notes.map((n) => ({ kind: "Note" as const, title: n.title, subtitle: n.folder, tags: n.tags, body: n.body })),
+    ...notes.map((n) => ({ id: n.id, kind: "Note" as const, title: n.title, subtitle: n.folder, tags: n.tags, body: n.body, link: n.title })),
     ...issues.map((i) => {
       const p = byId.get(i.projectId);
       return {
+        id: i.id,
         kind: "Issue" as const,
         title: i.title,
         subtitle: `${p ? issueKey(p, i) : "?"}, ${statusLabel(i.status)}`,
         tags: i.labels,
         body: i.description,
+        link: p ? issueKey(p, i) : i.title,
       };
     }),
     ...decisions.map((d) => ({
+      id: d.id,
       kind: "Decision" as const,
       title: d.title,
       subtitle: `ADR-${d.seq}, ${d.status}`,
       tags: d.tags,
       body: [d.context, d.decision, d.consequences].filter(Boolean).join("\n\n"),
+      link: `ADR-${d.seq}`,
     })),
   ];
 
@@ -314,20 +335,36 @@ export async function vaultRetrieval(query: string, k = 8, budget = 6_000): Prom
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, k);
+    .slice(0, k) as { d: Doc; score: number; best: number; excerpt?: string }[];
+
+  // Meaning-based hits fill in what the words missed, when the index is on.
+  if (semanticReady()) {
+    const byId = new Map(docs.map((d) => [d.id, d]));
+    const seen = new Set(scored.map((x) => x.d.id));
+    for (const h of await semanticSearch(query, k)) {
+      const d = byId.get(h.recordId);
+      if (!d || seen.has(d.id)) continue;
+      scored.push({ d, score: h.score * 10, best: -1, excerpt: h.text });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    scored.splice(k);
+  }
   if (!scored.length) return null;
 
   const perDoc = Math.max(300, Math.floor((budget - 200) / scored.length) - 80);
-  const blocks = scored.map(({ d, best }) => {
+  const sources: Source[] = scored.map(({ d }, idx) => ({ n: idx + 1, kind: d.kind, title: d.title, link: d.link }));
+  const blocks = scored.map(({ d, best, excerpt: pre }, idx) => {
     let excerpt: string;
-    if (!d.body.trim()) excerpt = "(no body)";
+    if (pre) excerpt = clip(pre, perDoc);
+    else if (!d.body.trim()) excerpt = "(no body)";
     else if (best === -1) excerpt = clip(d.body, Math.min(perDoc, 300));
     else {
       const start = Math.max(0, best - Math.floor(perDoc / 3));
       const end = Math.min(d.body.length, start + perDoc);
       excerpt = `${start > 0 ? "…" : ""}${d.body.slice(start, end).trim()}${end < d.body.length ? "…" : ""}`;
     }
-    return `### ${d.kind}: ${d.title} (${d.subtitle})\n${excerpt.replace(/\n{3,}/g, "\n\n")}`;
+    return `### [${idx + 1}] ${d.kind}: ${d.title} (${d.subtitle})\n${excerpt.replace(/\n{3,}/g, "\n\n")}`;
   });
-  return clip(`## Vault excerpts for "${clip(query, 80)}"\n\n${blocks.join("\n\n")}`, budget);
+  const text = clip(`## Vault excerpts for "${clip(query, 80)}"\nCite the excerpts you rely on as [n].\n\n${blocks.join("\n\n")}`, budget);
+  return { text, sources };
 }

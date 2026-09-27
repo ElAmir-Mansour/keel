@@ -6,6 +6,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { boot as bootSync, useSyncStatus } from "@/lib/sync/service";
 import { boot as bootBackup, shouldNudge } from "@/lib/backup/service";
+import { bootDigest, maybeRunDigest } from "@/lib/ai/digest";
+import { bootSemantic } from "@/lib/ai/semantic";
 
 /** Starts the background services once per page load and nudges about data safety. */
 export function ServicesBoot() {
@@ -16,7 +18,15 @@ export function ServicesBoot() {
   useEffect(() => {
     void bootSync();
     void bootBackup();
-  }, []);
+    bootDigest();
+    bootSemantic();
+    const t = setTimeout(() => {
+      void maybeRunDigest().then((n) => {
+        if (n) toast.success("This week's digest is ready", { action: { label: "Open", onClick: () => router.push(`/notes/${n.id}`) }, duration: 15000 });
+      });
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [router]);
 
   useEffect(() => {
     if (!hasData) return;
