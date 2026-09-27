@@ -1,5 +1,6 @@
 "use client";
 import { useMemo } from "react";
+import { useT } from "@/lib/i18n";
 import { SingleBarChart } from "./single-bar";
 
 export function fmtDays(d: number) {
@@ -10,8 +11,8 @@ export function CycleTimeChart({
   data,
   summary,
   loading,
-  title = "Cycle time",
-  periodLabel = "in this range",
+  title,
+  periodLabel,
 }: {
   data: { label: string; count: number }[];
   summary: { n: number; p50: number; p85: number };
@@ -19,9 +20,11 @@ export function CycleTimeChart({
   title?: string;
   periodLabel?: string;
 }) {
+  const t = useT();
   const rows = useMemo(() => data.map((d) => ({ label: d.label, value: d.count })), [data]);
+  const period = periodLabel ?? t("in this range");
   const subtitle = summary.n
-    ? `Started to done, ${summary.n} issues ${periodLabel} · p50 ${fmtDays(summary.p50)} d · p85 ${fmtDays(summary.p85)} d`
-    : `Started to done; no completed issues ${periodLabel}`;
-  return <SingleBarChart data={rows} loading={loading} title={title} subtitle={subtitle} seriesLabel="Issues" categoryLabel="Cycle time" />;
+    ? t("Started to done, {n} issues {period} · p50 {p50} d · p85 {p85} d", { n: summary.n, period, p50: fmtDays(summary.p50), p85: fmtDays(summary.p85) })
+    : t("Started to done; no completed issues {period}", { period });
+  return <SingleBarChart data={rows} loading={loading} title={title ?? t("Cycle time")} subtitle={subtitle} seriesLabel={t("Issues")} categoryLabel={t("Cycle time")} />;
 }

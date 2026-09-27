@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Check, Copy, Send } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/db";
+import { useT } from "@/lib/i18n";
 import { createIssue, postUpdate } from "@/lib/repo";
 import { HEALTHS, PRIORITIES, type Health, type Priority } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -45,12 +46,12 @@ export function parseTasks(raw: string): ProposedTask[] | null {
     const o = item as Record<string, unknown>;
     const title = typeof o.title === "string" ? o.title.trim() : "";
     if (!title) continue;
-    const t: ProposedTask = { title: title.slice(0, 200) };
+    const task: ProposedTask = { title: title.slice(0, 200) };
     if (typeof o.priority === "string" && o.priority !== "none" && PRIORITY_VALUES.has(o.priority)) {
-      t.priority = o.priority as Priority;
+      task.priority = o.priority as Priority;
     }
-    if (typeof o.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.dueDate)) t.dueDate = o.dueDate;
-    out.push(t);
+    if (typeof o.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.dueDate)) task.dueDate = o.dueDate;
+    out.push(task);
     if (out.length >= 12) break;
   }
   return out;
@@ -78,11 +79,12 @@ export function unfence(text: string) {
 }
 
 export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
-    const t = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
   }, [copied]);
   return (
     <Button
@@ -93,17 +95,18 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
           await navigator.clipboard.writeText(text);
           setCopied(true);
         } catch {
-          toast.error("Could not copy to the clipboard");
+          toast.error(t("Could not copy to the clipboard"));
         }
       }}
     >
       {copied ? <Check /> : <Copy />}
-      {copied ? "Copied" : label}
+      {copied ? t("Copied") : t(label)}
     </Button>
   );
 }
 
 export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?: string; projectId?: string }) {
+  const t = useT();
   const tasks = useMemo(() => parseTasks(raw), [raw]);
   const projects = useActiveProjects();
   const note = useLiveQuery(() => (noteId ? db.notes.get(noteId) : undefined), [noteId]);
@@ -117,9 +120,9 @@ export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?
   if (!tasks) {
     return (
       <div className="space-y-2 text-sm">
-        <p className="text-muted-foreground">Could not read a task list from the answer.</p>
+        <p className="text-muted-foreground">{t("Could not read a task list from the answer.")}</p>
         <details>
-          <summary className="cursor-pointer text-xs text-muted-foreground">Show raw answer</summary>
+          <summary className="cursor-pointer text-xs text-muted-foreground">{t("Show raw answer")}</summary>
           <pre className="mt-1 overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap" dir="auto">
             {raw}
           </pre>
@@ -127,34 +130,34 @@ export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?
       </div>
     );
   }
-  if (!tasks.length) return <p className="text-sm text-muted-foreground">No open action items found in this note.</p>;
+  if (!tasks.length) return <p className="text-sm text-muted-foreground">{t("No open action items found in this note.")}</p>;
 
   const count = selected.filter(Boolean).length;
 
   async function create() {
     if (!effectivePid) {
-      toast.error("Create a project first");
+      toast.error(t("Create a project first"));
       return;
     }
     const chosen = tasks!.filter((_, i) => selected[i]);
     setBusy(true);
     try {
-      for (const t of chosen) {
+      for (const task of chosen) {
         await createIssue({
           projectId: effectivePid,
-          title: t.title,
+          title: task.title,
           status: "backlog",
-          priority: t.priority,
-          dueDate: t.dueDate,
+          priority: task.priority,
+          dueDate: task.dueDate,
           description: note ? `From [[${note.title}]]` : "",
         });
       }
       setCreated(chosen.length);
-      toast.success(`Created ${chosen.length} issue${chosen.length === 1 ? "" : "s"}`, {
-        action: { label: "Open issues", onClick: () => router.push(`/projects/${effectivePid}/issues`) },
+      toast.success(chosen.length === 1 ? t("Created 1 issue") : t("Created {n} issues", { n: chosen.length }), {
+        action: { label: t("Open issues"), onClick: () => router.push(`/projects/${effectivePid}/issues`) },
       });
     } catch {
-      toast.error("Could not create the issues");
+      toast.error(t("Could not create the issues"));
     } finally {
       setBusy(false);
     }
@@ -163,7 +166,7 @@ export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?
   return (
     <div className="space-y-3 rounded-lg border bg-card p-3">
       <ul className="space-y-1.5">
-        {tasks.map((t, i) => {
+        {tasks.map((task, i) => {
           const id = `ai-task-${i}`;
           return (
             <li key={id} className="flex items-start gap-2 text-sm">
@@ -175,15 +178,15 @@ export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?
                 onCheckedChange={(v) => setSelected((s) => s.map((x, j) => (j === i ? v === true : x)))}
               />
               <label htmlFor={id} className={cn("min-w-0 flex-1 leading-5", created !== null && "text-muted-foreground")} dir="auto">
-                {t.title}
-                {t.priority || t.dueDate ? (
+                {task.title}
+                {task.priority || task.dueDate ? (
                   <span className="ms-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {t.priority ? (
+                    {task.priority ? (
                       <span className="inline-flex items-center gap-1">
-                        <PriorityIcon priority={t.priority} /> {priorityLabel(t.priority)}
+                        <PriorityIcon priority={task.priority} /> {priorityLabel(task.priority)}
                       </span>
                     ) : null}
-                    {t.dueDate ? <span>due {t.dueDate}</span> : null}
+                    {task.dueDate ? <span>{t("due {date}", { date: task.dueDate })}</span> : null}
                   </span>
                 ) : null}
               </label>
@@ -193,8 +196,8 @@ export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?
       </ul>
       <div className="flex flex-wrap items-center gap-2">
         <Select value={effectivePid} onValueChange={setPid} disabled={created !== null}>
-          <SelectTrigger size="sm" className="min-w-40" aria-label="Project">
-            <SelectValue placeholder="Project" />
+          <SelectTrigger size="sm" className="min-w-40" aria-label={t("Project")}>
+            <SelectValue placeholder={t("Project")} />
           </SelectTrigger>
           <SelectContent>
             {projects.map((p) => (
@@ -206,11 +209,11 @@ export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?
         </Select>
         {created === null ? (
           <Button size="sm" disabled={!count || !effectivePid || busy} onClick={create}>
-            Create {count} issue{count === 1 ? "" : "s"}
+            {count === 1 ? t("Create 1 issue") : t("Create {n} issues", { n: count })}
           </Button>
         ) : (
           <Link href={`/projects/${effectivePid}/issues`} className="text-sm underline underline-offset-4">
-            Created {created} — open the issues
+            {t("Created {n} — open the issues", { n: created })}
           </Link>
         )}
       </div>
@@ -219,6 +222,7 @@ export function TasksProposal({ raw, noteId, projectId }: { raw: string; noteId?
 }
 
 export function WeeklyPost({ markdown, projectId }: { markdown: string; projectId?: string }) {
+  const t = useT();
   const router = useRouter();
   const [health, setHealth] = useState<Health>(() => parseHealth(markdown) ?? "on_track");
   const [posted, setPosted] = useState(false);
@@ -230,11 +234,11 @@ export function WeeklyPost({ markdown, projectId }: { markdown: string; projectI
     try {
       await postUpdate({ projectId, health, summary: unfence(markdown) });
       setPosted(true);
-      toast.success("Update posted", {
-        action: { label: "Open updates", onClick: () => router.push(`/projects/${projectId}/updates`) },
+      toast.success(t("Update posted"), {
+        action: { label: t("Open updates"), onClick: () => router.push(`/projects/${projectId}/updates`) },
       });
     } catch {
-      toast.error("Could not post the update");
+      toast.error(t("Could not post the update"));
     } finally {
       setBusy(false);
     }
@@ -244,7 +248,7 @@ export function WeeklyPost({ markdown, projectId }: { markdown: string; projectI
     <div className="flex flex-wrap items-center gap-2">
       {projectId ? (
         <>
-          <div role="radiogroup" aria-label="Health" className="flex items-center gap-1">
+          <div role="radiogroup" aria-label={t("Health")} className="flex items-center gap-1">
             {HEALTHS.map((h) => (
               <button
                 key={h.value}
@@ -264,11 +268,11 @@ export function WeeklyPost({ markdown, projectId }: { markdown: string; projectI
           </div>
           {posted ? (
             <Link href={`/projects/${projectId}/updates`} className="text-sm underline underline-offset-4">
-              Posted — open updates
+              {t("Posted — open updates")}
             </Link>
           ) : (
             <Button size="xs" onClick={post} disabled={busy}>
-              <Send /> Post as update
+              <Send /> {t("Post as update")}
             </Button>
           )}
         </>

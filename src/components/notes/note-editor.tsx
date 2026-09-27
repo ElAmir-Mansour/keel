@@ -17,6 +17,7 @@ import { MarkdownEditor, MarkdownView, toggleTaskInMarkdown } from "@/components
 import { EmptyState, ProjectDot } from "@/components/ui-bits";
 import { useLinkIndex, usePeople } from "@/hooks/use-data";
 import { db } from "@/lib/db";
+import { useT } from "@/lib/i18n";
 import { parseYMD, todayYMD, ymd } from "@/lib/dates";
 import { createNote, deleteNote, getOrCreateDailyNote, updateNote } from "@/lib/repo";
 import { NOTE_TEMPLATES } from "@/lib/templates";
@@ -24,6 +25,7 @@ import { NOTE_KINDS, NOTE_STATUSES, noteFolder, type Note, type NoteKind, type N
 import { useUi } from "@/lib/ui-store";
 import { ConfirmDialog } from "./confirm-dialog";
 import { NoteLinksPanel } from "./note-links-panel";
+import { NoteHistory } from "./note-history";
 import { TagsEditor } from "./tags-editor";
 import { useDraft } from "./use-draft";
 import { useEditorMode, type EditorMode } from "./use-editor-mode";
@@ -36,6 +38,7 @@ export function NoteEditor() {
   const { id } = useParams<{ id: string }>();
   const note = useLiveQuery(() => db.notes.get(id).then((n) => n ?? null), [id], undefined);
   const [deleted, setDeleted] = useState(false);
+  const t = useT();
 
   if (note === undefined || (note === null && deleted)) {
     return (
@@ -48,9 +51,9 @@ export function NoteEditor() {
   }
   if (note === null) {
     return (
-      <EmptyState icon={<FileText />} title="Note not found" description="It may have been deleted, or the link is from another workspace.">
+      <EmptyState icon={<FileText />} title={t("Note not found")} description={t("It may have been deleted, or the link is from another workspace.")}>
         <Button asChild size="sm" variant="outline">
-          <Link href="/notes">Back to notes</Link>
+          <Link href="/notes">{t("Back to notes")}</Link>
         </Button>
       </EmptyState>
     );
@@ -64,8 +67,9 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
   const idx = useLinkIndex();
   const people = usePeople();
   const listId = useId();
+  const t = useT();
 
-  const [title, setTitle] = useDraft(note.title, (t) => updateNote(note.id, { title: t.trim() || "Untitled" }));
+  const [title, setTitle] = useDraft(note.title, (v) => updateNote(note.id, { title: v.trim() || t("Untitled") }));
   const [body, setBody] = useDraft(note.body, (b) => updateNote(note.id, { body: b }));
   const [folder, setFolder] = useDraft(note.folder, (f) => updateNote(note.id, { folder: f.trim().replace(/^\/+|\/+$/g, "") || noteFolder(note.kind) }));
   const [mode, setMode] = useEditorMode();
@@ -112,17 +116,17 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
       date: note.date,
       status: note.status,
       tags: note.tags,
-      title: `${title.trim() || note.title} (copy)`,
+      title: t("{title} (copy)", { title: title.trim() || note.title }),
       body,
     });
-    toast.success("Note duplicated");
+    toast.success(t("Note duplicated"));
     router.push(`/notes/${copy.id}`);
   }
 
   async function remove() {
     onDeleted();
     await deleteNote(note.id);
-    toast.success("Note deleted");
+    toast.success(t("Note deleted"));
     router.replace("/notes");
   }
 
@@ -134,19 +138,19 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
         {note.kind === "daily" ? (
           <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
             <Button variant="ghost" size="xs" onClick={() => void goDay(-1)}>
-              <ChevronLeft className="rtl:rotate-180" /> Previous day
+              <ChevronLeft className="rtl:rotate-180" /> {t("Previous day")}
             </Button>
             <Button variant="ghost" size="xs" onClick={() => void goDay(0)} disabled={note.date === todayYMD()}>
-              Today
+              {t("Today")}
             </Button>
             <Button variant="ghost" size="xs" onClick={() => void goDay(1)}>
-              Next day <ChevronRight className="rtl:rotate-180" />
+              {t("Next day")} <ChevronRight className="rtl:rotate-180" />
             </Button>
           </div>
         ) : (
-          <nav className="flex items-center gap-1 text-xs text-muted-foreground" aria-label="Breadcrumb">
+          <nav className="flex items-center gap-1 text-xs text-muted-foreground" aria-label={t("Breadcrumb")}>
             <Link href="/notes" className="hover:underline">
-              Notes
+              {t("Notes")}
             </Link>
             {note.folder.split("/").filter(Boolean).map((seg, i, arr) => {
               const path = arr.slice(0, i + 1).join("/");
@@ -168,42 +172,42 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
           onKeyDown={(e) => {
             if (e.key === "Escape" || e.key === "Enter") e.currentTarget.blur();
           }}
-          placeholder="Untitled"
-          aria-label="Title"
+          placeholder={t("Untitled")}
+          aria-label={t("Title")}
           dir="auto"
           className="w-full bg-transparent text-3xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/50"
         />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-card px-3 py-2 text-xs">
-          <Prop label="Kind">
+          <Prop label={t("Kind")}>
             <Select value={note.kind} onValueChange={(v) => changeKind(v as NoteKind)}>
-              <SelectTrigger size="sm" className="w-auto" aria-label="Kind">
+              <SelectTrigger size="sm" className="w-auto" aria-label={t("Kind")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {NOTE_KINDS.map((k) => (
                   <SelectItem key={k.value} value={k.value}>
-                    {k.label}
+                    {t(k.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Prop>
-          <Prop label="Folder">
-            <Input list={listId} value={folder} onChange={(e) => setFolder(e.target.value)} dir="auto" aria-label="Folder" className="h-7 w-40 text-xs" placeholder={noteFolder(note.kind)} />
+          <Prop label={t("Folder")}>
+            <Input list={listId} value={folder} onChange={(e) => setFolder(e.target.value)} dir="auto" aria-label={t("Folder")} className="h-7 w-40 text-xs" placeholder={noteFolder(note.kind)} />
             <datalist id={listId}>
               {folders.map((f) => (
                 <option key={f} value={f} />
               ))}
             </datalist>
           </Prop>
-          <Prop label="Project">
+          <Prop label={t("Project")}>
             <Select value={note.projectId ?? "__none"} onValueChange={(v) => void updateNote(note.id, { projectId: v === "__none" ? undefined : v })}>
-              <SelectTrigger size="sm" className="w-auto" aria-label="Project">
-                <SelectValue placeholder="No project" />
+              <SelectTrigger size="sm" className="w-auto" aria-label={t("Project")}>
+                <SelectValue placeholder={t("No project")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none">No project</SelectItem>
+                <SelectItem value="__none">{t("No project")}</SelectItem>
                 {idx.projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     <ProjectDot project={p} /> {p.name}
@@ -213,13 +217,13 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
             </Select>
           </Prop>
           {note.kind === "oneonone" ? (
-            <Prop label="With">
+            <Prop label={t("With")}>
               <Select value={note.personId ?? "__none"} onValueChange={(v) => void updateNote(note.id, { personId: v === "__none" ? undefined : v })}>
-                <SelectTrigger size="sm" className="w-auto" aria-label="Person">
-                  <SelectValue placeholder="Nobody" />
+                <SelectTrigger size="sm" className="w-auto" aria-label={t("Person")}>
+                  <SelectValue placeholder={t("Nobody")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">Nobody</SelectItem>
+                  <SelectItem value="__none">{t("Nobody")}</SelectItem>
                   {people.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
@@ -229,32 +233,32 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
               </Select>
             </Prop>
           ) : null}
-          <Prop label="Date">
-            <Input type="date" value={note.date} onChange={(e) => changeDate(e.target.value)} aria-label="Date" className="h-7 w-auto text-xs" />
+          <Prop label={t("Date")}>
+            <Input type="date" value={note.date} onChange={(e) => changeDate(e.target.value)} aria-label={t("Date")} className="h-7 w-auto text-xs" />
           </Prop>
           {isDoc ? (
-            <Prop label="Status">
+            <Prop label={t("Status")}>
               <Select value={note.status ?? "__none"} onValueChange={(v) => void updateNote(note.id, { status: v === "__none" ? undefined : (v as NoteStatus) })}>
-                <SelectTrigger size="sm" className="w-auto" aria-label="Status">
-                  <SelectValue placeholder="No status" />
+                <SelectTrigger size="sm" className="w-auto" aria-label={t("Status")}>
+                  <SelectValue placeholder={t("No status")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">No status</SelectItem>
+                  <SelectItem value="__none">{t("No status")}</SelectItem>
                   {NOTE_STATUSES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
-                      {s.label}
+                      {t(s.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Prop>
           ) : null}
-          <Prop label="Tags" className="min-w-48 flex-1">
+          <Prop label={t("Tags")} className="min-w-48 flex-1">
             <TagsEditor tags={note.tags} onChange={(tags) => void updateNote(note.id, { tags })} className="flex-1" />
           </Prop>
           <Button variant={note.pinned ? "secondary" : "ghost"} size="xs" aria-pressed={note.pinned} onClick={() => void updateNote(note.id, { pinned: !note.pinned })}>
             {note.pinned ? <Pin /> : <PinOff />}
-            {note.pinned ? "Pinned" : "Pin"}
+            {note.pinned ? t("Pinned") : t("Pin")}
           </Button>
         </div>
 
@@ -268,44 +272,46 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
       <aside className="space-y-5 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto thin-scroll">
         <div className="flex flex-wrap gap-1.5">
           <Button variant="outline" size="sm" onClick={askAI}>
-            <Sparkles /> Ask AI
+            <Sparkles /> {t("Ask AI")}
           </Button>
           <Button variant="outline" size="sm" onClick={() => openAI({ noteId: note.id, action: "summarize" })}>
-            Summarize
+            {t("Summarize")}
           </Button>
           <Button variant="outline" size="sm" onClick={() => openAI({ noteId: note.id, projectId: note.projectId, action: "tasks" })}>
-            <ListChecks /> Extract tasks
+            <ListChecks /> {t("Extract tasks")}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <LayoutTemplate /> Insert template
+                <LayoutTemplate /> {t("Insert template")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuLabel>Template</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("Template")}</DropdownMenuLabel>
               {NOTE_KINDS.filter((k) => NOTE_TEMPLATES[k.value].trim()).map((k) => (
                 <DropdownMenuItem key={k.value} onSelect={() => insertTemplate(k.value)}>
-                  {k.label}
+                  {t(k.label)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" size="sm" onClick={() => void duplicate()}>
-            <Copy /> Duplicate
+            <Copy /> {t("Duplicate")}
           </Button>
           <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}>
-            <Trash2 /> Delete
+            <Trash2 /> {t("Delete")}
           </Button>
         </div>
         <NoteLinksPanel note={note} body={body} idx={idx} project={project} />
+
+        <NoteHistory noteId={note.id} />
       </aside>
 
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="Delete this note?"
-        description={`"${note.title}" will be removed. Links to it from other notes will show as missing.`}
+        title={t("Delete this note?")}
+        description={t('"{title}" will be removed. Links to it from other notes will show as missing.', { title: note.title })}
         confirmLabel="Delete"
         destructive
         onConfirm={remove}
@@ -313,8 +319,8 @@ function Editor({ note, onDeleted }: { note: Note; onDeleted: () => void }) {
       <ConfirmDialog
         open={pendingTemplate !== null}
         onOpenChange={(v) => !v && setPendingTemplate(null)}
-        title="Append template?"
-        description="The note already has content. The template will be added at the end."
+        title={t("Append template?")}
+        description={t("The note already has content. The template will be added at the end.")}
         confirmLabel="Append"
         onConfirm={() => {
           if (pendingTemplate) setBody(body.trimEnd() + "\n\n" + NOTE_TEMPLATES[pendingTemplate]);
@@ -351,25 +357,26 @@ function ReadingView({
   onAskAI: () => void;
   onToggleTask: (index: number, checked: boolean) => void;
 }) {
+  const t = useT();
   return (
     <div className="rounded-lg border bg-card">
       <div className="flex flex-wrap items-center gap-1 border-b px-2 py-1.5">
-        <ToolBtn label="Ask AI about this" onClick={onAskAI}>
+        <ToolBtn label={t("Ask AI about this")} onClick={onAskAI}>
           <Sparkles />
         </ToolBtn>
         <div className="ms-auto flex items-center gap-0.5">
-          <ToolBtn label="Edit" active={mode === "edit"} onClick={() => onModeChange("edit")}>
+          <ToolBtn label={t("Edit")} active={mode === "edit"} onClick={() => onModeChange("edit")}>
             <Pencil />
           </ToolBtn>
-          <ToolBtn label="Split" active={mode === "split"} onClick={() => onModeChange("split")}>
+          <ToolBtn label={t("Split")} active={mode === "split"} onClick={() => onModeChange("split")}>
             <Columns2 />
           </ToolBtn>
-          <ToolBtn label="Preview" active={mode === "preview"} onClick={() => onModeChange("preview")}>
+          <ToolBtn label={t("Preview")} active={mode === "preview"} onClick={() => onModeChange("preview")}>
             <Eye />
           </ToolBtn>
         </div>
       </div>
-      <div className="px-4 py-3">{body.trim() ? <MarkdownView body={body} onToggleTask={onToggleTask} /> : <p className="text-sm text-muted-foreground">Nothing to read yet — switch to Edit to start writing.</p>}</div>
+      <div className="px-4 py-3">{body.trim() ? <MarkdownView body={body} onToggleTask={onToggleTask} /> : <p className="text-sm text-muted-foreground">{t("Nothing to read yet — switch to Edit to start writing.")}</p>}</div>
     </div>
   );
 }

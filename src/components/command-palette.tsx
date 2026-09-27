@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
@@ -49,6 +50,7 @@ export function CommandPalette() {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const [q, setQ] = useState("");
+  const t = useT();
   const projects = useProjects();
   const active = useActiveProjects();
   const issues = useAllIssues();
@@ -95,13 +97,13 @@ export function CommandPalette() {
   }
 
   return (
-    <CommandDialog open={paletteOpen} onOpenChange={setOpen} title="Command palette" description="Search notes, issues and decisions, or run a command" className="sm:max-w-xl">
+    <CommandDialog open={paletteOpen} onOpenChange={setOpen} title={t("Command palette")} description={t("Search notes, issues and decisions, or run a command")} className="sm:max-w-xl">
       <Command shouldFilter={!q.trim() || (hits.length === 0 && related.length === 0)} loop>
-        <CommandInput placeholder="Search or type a command…" value={q} onValueChange={setQ} />
+        <CommandInput placeholder={t("Search or type a command…")} value={q} onValueChange={setQ} />
         <CommandList className="max-h-[60vh]">
-          <CommandEmpty>Nothing found.</CommandEmpty>
+          <CommandEmpty>{t("Nothing found.")}</CommandEmpty>
           {hits.length ? (
-            <CommandGroup heading="Results">
+            <CommandGroup heading={t("Results")}>
               {hits.map((h) => (
                 <CommandItem key={h.kind + h.id} value={`${h.kind}-${h.id}`} onSelect={() => go(h.href)}>
                   {h.kind === "note" ? <FileText /> : h.kind === "issue" ? <CircleDot /> : h.kind === "decision" ? <Scale /> : <FolderKanban />}
@@ -112,7 +114,7 @@ export function CommandPalette() {
             </CommandGroup>
           ) : null}
           {q.trim().length >= 3 && related.length ? (
-            <CommandGroup heading="Related by meaning">
+            <CommandGroup heading={t("Related by meaning")}>
               {related.map((h) => (
                 <CommandItem key={"sem" + h.recordId} value={`sem-${h.recordId}`} onSelect={() => go(relatedHref(h))}>
                   {h.kind === "note" ? <FileText /> : h.kind === "issue" ? <CircleDot /> : <Scale />}
@@ -122,12 +124,12 @@ export function CommandPalette() {
               ))}
             </CommandGroup>
           ) : null}
-          <CommandGroup heading="Create">
+          <CommandGroup heading={t("Create")}>
             <CommandItem onSelect={() => run(() => openQuickCreate("issue"))}>
-              <Plus /> New issue <CommandShortcut>C</CommandShortcut>
+              <Plus /> {t("New issue")} <CommandShortcut>C</CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={() => run(() => openQuickCreate("note"))}>
-              <FileText /> New note <CommandShortcut>N</CommandShortcut>
+              <FileText /> {t("New note")} <CommandShortcut>N</CommandShortcut>
             </CommandItem>
             <CommandItem
               onSelect={() =>
@@ -137,32 +139,32 @@ export function CommandPalette() {
                 })
               }
             >
-              <CalendarDays /> Open today&apos;s note <CommandShortcut>T</CommandShortcut>
+              <CalendarDays /> {t("Open today's note")} <CommandShortcut>T</CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={() => run(() => openQuickCreate("decision"))}>
-              <Scale /> New decision
+              <Scale /> {t("New decision")}
             </CommandItem>
             <CommandItem onSelect={() => run(() => openQuickCreate("risk"))}>
-              <AlertTriangle /> New risk
+              <AlertTriangle /> {t("New risk")}
             </CommandItem>
             <CommandItem onSelect={() => run(() => openQuickCreate("project"))}>
-              <FolderKanban /> New project
+              <FolderKanban /> {t("New project")}
             </CommandItem>
             <CommandItem onSelect={() => run(() => openAI({ action: "ask" }))}>
-              <Sparkles /> Ask AI <CommandShortcut>A</CommandShortcut>
+              <Sparkles /> {t("Ask AI")} <CommandShortcut>A</CommandShortcut>
             </CommandItem>
           </CommandGroup>
           <CommandSeparator />
-          <CommandGroup heading="Go to">
+          <CommandGroup heading={t("Go to")}>
             {NAV.map((n) => (
               <CommandItem key={n.href} onSelect={() => go(n.href)}>
-                <n.icon /> {n.label}
+                <n.icon /> {t(n.label)}
                 <CommandShortcut>G {n.key.toUpperCase()}</CommandShortcut>
               </CommandItem>
             ))}
           </CommandGroup>
           {active.length ? (
-            <CommandGroup heading="Projects">
+            <CommandGroup heading={t("Projects")}>
               {active.map((p) => (
                 <CommandItem key={p.id} value={`project ${p.name} ${p.key}`} onSelect={() => go(`/projects/${p.id}`)}>
                   <ProjectDot project={p} className="ms-1 me-1" /> {p.name}
@@ -171,20 +173,20 @@ export function CommandPalette() {
               ))}
               {active.map((p) => (
                 <CommandItem key={p.id + "board"} value={`board ${p.name} ${p.key}`} onSelect={() => go(`/projects/${p.id}/board`)}>
-                  <LayoutGrid /> {p.name} board
+                  <LayoutGrid /> {t("{name} board", { name: p.name })}
                 </CommandItem>
               ))}
               {active.map((p) => (
                 <CommandItem key={p.id + "roadmap"} value={`roadmap ${p.name} ${p.key}`} onSelect={() => go(`/projects/${p.id}/roadmap`)}>
-                  <GitBranch /> {p.name} roadmap
+                  <GitBranch /> {t("{name} roadmap", { name: p.name })}
                 </CommandItem>
               ))}
             </CommandGroup>
           ) : null}
           <CommandSeparator />
-          <CommandGroup heading="Workspace">
+          <CommandGroup heading={t("Workspace")}>
             <CommandItem onSelect={() => run(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"))}>
-              {resolvedTheme === "dark" ? <Sun /> : <Moon />} Toggle theme
+              {resolvedTheme === "dark" ? <Sun /> : <Moon />} {t("Toggle theme")}
             </CommandItem>
             <CommandItem
               onSelect={() =>
@@ -194,7 +196,7 @@ export function CommandPalette() {
                 })
               }
             >
-              <Download /> Export everything as JSON
+              <Download /> {t("Export everything as JSON")}
             </CommandItem>
           </CommandGroup>
         </CommandList>

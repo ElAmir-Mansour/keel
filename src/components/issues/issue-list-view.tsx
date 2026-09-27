@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePeople, useProject } from "@/hooks/use-data";
+import { useLang, useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui-store";
 import { EmptyState } from "@/components/ui-bits";
 import { IssueRow } from "./issue-row";
@@ -17,6 +18,8 @@ import { SavedViews } from "./saved-views";
 import { useListNav } from "./use-list-nav";
 
 export function IssueListView() {
+  const t = useT();
+  const lang = useLang();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { openQuickCreate } = useUi();
@@ -29,7 +32,9 @@ export function IssueListView() {
   const activeCycleId = useMemo(() => cycles.find((c) => c.status === "active")?.id, [cycles]);
 
   const visible = useMemo(() => applyIssueFilters(issues, filters, project, activeCycleId), [issues, filters, project, activeCycleId]);
-  const groups = useMemo(() => groupIssues(visible, filters.group, { milestones, people }), [visible, filters.group, milestones, people]);
+  // `lang` is a dependency because groupIssues translates its static labels.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const groups = useMemo(() => groupIssues(visible, filters.group, { milestones, people }), [visible, filters.group, milestones, people, lang]);
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
   const milestoneById = useMemo(() => new Map(milestones.map((m) => [m.id, m])), [milestones]);
   const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
@@ -53,51 +58,51 @@ export function IssueListView() {
             <TooltipTrigger asChild>
               <Button type="button" variant={filters.done ? "secondary" : "ghost"} size="sm" aria-pressed={filters.done} onClick={() => set({ done: !filters.done })} className="h-7 text-xs font-normal">
                 <CheckCircle2 className="size-3.5" />
-                {filters.done ? "Hide closed" : "Show closed"}
+                {filters.done ? t("Hide closed") : t("Show closed")}
                 {!filters.done && closed ? <span className="tabular text-muted-foreground">{closed}</span> : null}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Done issues older than {DONE_WINDOW_DAYS} days and cancelled issues are hidden by default</TooltipContent>
+            <TooltipContent>{t("Done issues older than {n} days and cancelled issues are hidden by default", { n: DONE_WINDOW_DAYS })}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button asChild variant="ghost" size="icon-sm" aria-label="Board">
+              <Button asChild variant="ghost" size="icon-sm" aria-label={t("Board")}>
                 <Link href={`/projects/${id}/board`}><LayoutGrid /></Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Board</TooltipContent>
+            <TooltipContent>{t("Board")}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button asChild variant="ghost" size="icon-sm" aria-label="Roadmap">
+              <Button asChild variant="ghost" size="icon-sm" aria-label={t("Roadmap")}>
                 <Link href={`/projects/${id}/roadmap`}><GitBranch /></Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Roadmap</TooltipContent>
+            <TooltipContent>{t("Roadmap")}</TooltipContent>
           </Tooltip>
           <Button type="button" size="sm" className="ms-1 h-7" onClick={() => openQuickCreate("issue", id)}>
-            <Plus /> New issue <Kbd className="ms-1 bg-primary-foreground/20 text-primary-foreground">C</Kbd>
+            <Plus /> {t("New issue")} <Kbd className="ms-1 bg-primary-foreground/20 text-primary-foreground">C</Kbd>
           </Button>
         </div>
       </div>
 
       {total === 0 ? (
-        <EmptyState icon={<CircleDot />} title="No issues yet" description="Capture the first one. Press C anywhere, or paste a list — one issue per line.">
+        <EmptyState icon={<CircleDot />} title={t("No issues yet")} description={t("Capture the first one. Press C anywhere, or paste a list — one issue per line.")}>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Button type="button" size="sm" onClick={() => openQuickCreate("issue", id)}>
-              <Plus /> New issue
+              <Plus /> {t("New issue")}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => openQuickCreate("issue", id)}>
-              Paste a list
+              {t("Paste a list")}
             </Button>
           </div>
         </EmptyState>
       ) : flat.length === 0 ? (
-        <EmptyState title="No issues match" description={active ? "Loosen the filters or clear them." : `Everything is closed. Show closed to see the ${closed} done and cancelled issues.`}>
+        <EmptyState title={t("No issues match")} description={active ? t("Loosen the filters or clear them.") : t("Everything is closed. Show closed to see the {n} done and cancelled issues.", { n: closed })}>
           {active ? (
-            <Button type="button" variant="outline" size="sm" onClick={clear}>Clear filters</Button>
+            <Button type="button" variant="outline" size="sm" onClick={clear}>{t("Clear filters")}</Button>
           ) : (
-            <Button type="button" variant="outline" size="sm" onClick={() => set({ done: true })}>Show closed</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => set({ done: true })}>{t("Show closed")}</Button>
           )}
         </EmptyState>
       ) : (
@@ -133,10 +138,10 @@ export function IssueListView() {
       )}
 
       <p className={cn("mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground", flat.length === 0 && "hidden")}>
-        <span className="tabular">{flat.length} of {total}</span>
-        <span className="inline-flex items-center gap-1"><Kbd>J</Kbd><Kbd>K</Kbd> move</span>
-        <span className="inline-flex items-center gap-1"><Kbd>↵</Kbd> open</span>
-        <span className="inline-flex items-center gap-1"><Kbd>C</Kbd> new</span>
+        <span className="tabular">{t("{shown} of {total}", { shown: flat.length, total })}</span>
+        <span className="inline-flex items-center gap-1"><Kbd>J</Kbd><Kbd>K</Kbd> {t("move")}</span>
+        <span className="inline-flex items-center gap-1"><Kbd>↵</Kbd> {t("open")}</span>
+        <span className="inline-flex items-center gap-1"><Kbd>C</Kbd> {t("new")}</span>
       </p>
     </div>
   );

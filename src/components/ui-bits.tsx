@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -62,10 +63,11 @@ export function statusLabel(status: IssueStatus) {
 }
 
 export function StatusBadge({ status, className }: { status: IssueStatus; className?: string }) {
+  const t = useT();
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs text-muted-foreground", className)}>
       <StatusIcon status={status} />
-      {statusLabel(status)}
+      {t(statusLabel(status))}
     </span>
   );
 }
@@ -91,16 +93,18 @@ export function priorityLabel(p: Priority) {
 }
 
 export function PriorityBadge({ priority, className }: { priority: Priority; className?: string }) {
+  const t = useT();
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs text-muted-foreground", className)}>
       <PriorityIcon priority={priority} />
-      {priorityLabel(priority)}
+      {t(priorityLabel(priority))}
     </span>
   );
 }
 
 export function HealthBadge({ health, className, size = "sm" }: { health?: Health | null; className?: string; size?: "sm" | "md" }) {
-  const label = HEALTHS.find((h) => h.value === health)?.label ?? "No update";
+  const t = useT();
+  const label = t(HEALTHS.find((h) => h.value === health)?.label ?? "No update");
   const icon =
     health === "on_track" ? (
       <CheckCircle2 className="size-3.5 text-[var(--viz-good)]" />
@@ -139,10 +143,11 @@ export function initials(name: string) {
 }
 
 export function PersonAvatar({ person, className, size = "sm" }: { person?: Person | null; className?: string; size?: "xs" | "sm" | "md" }) {
+  const t = useT();
   const dim = size === "xs" ? "size-5 text-[10px]" : size === "sm" ? "size-6 text-[11px]" : "size-8 text-xs";
   if (!person) {
     return (
-      <span className={cn("inline-flex items-center justify-center rounded-full border border-dashed text-muted-foreground", dim, className)} title="Unassigned">
+      <span className={cn("inline-flex items-center justify-center rounded-full border border-dashed text-muted-foreground", dim, className)} title={t("Unassigned")}>
         <Circle className="size-3" />
       </span>
     );
@@ -157,10 +162,11 @@ export function PersonAvatar({ person, className, size = "sm" }: { person?: Pers
 }
 
 export function PersonChip({ person, className }: { person?: Person | null; className?: string }) {
+  const t = useT();
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs", className)}>
       <PersonAvatar person={person} size="xs" />
-      <span className={cn(!person && "text-muted-foreground")}>{person?.name ?? "Unassigned"}</span>
+      <span className={cn(!person && "text-muted-foreground")}>{person?.name ?? t("Unassigned")}</span>
     </span>
   );
 }
@@ -187,7 +193,8 @@ export function ProjectChip({ project, className, link = true }: { project?: Pro
 }
 
 export function KindBadge({ kind, className }: { kind: NoteKind; className?: string }) {
-  const label = NOTE_KINDS.find((k) => k.value === kind)?.label ?? kind;
+  const t = useT();
+  const label = t(NOTE_KINDS.find((k) => k.value === kind)?.label ?? kind);
   return (
     <Badge variant="secondary" className={cn("font-normal", className)}>
       {label}

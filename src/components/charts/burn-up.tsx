@@ -3,9 +3,11 @@ import { useMemo } from "react";
 import { Area, CartesianGrid, ComposedChart, LabelList, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, type LabelProps } from "recharts";
 import { AXIS_TICK, CHROME, SERIES } from "@/lib/chart-theme";
 import { fmtDate, fmtShort } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import type { DayPoint } from "@/lib/metrics";
 import { ChartCard, ChartLegend, ChartTooltip, LINE_CURSOR, type SeriesDef } from "./chart-card";
 
+// Labels stay English here and are translated at render with t(label).
 const SERIES_DEF: SeriesDef[] = [
   { key: "done", label: "Done", color: SERIES[0], shape: "line" },
   { key: "scope", label: "Scope", color: CHROME.deemphasis, shape: "line" },
@@ -16,14 +18,16 @@ const HEIGHT = 240;
 export function BurnUpChart({
   data,
   loading,
-  title = "Burn-up",
-  subtitle = "Cumulative done against total scope",
+  title,
+  subtitle,
 }: {
   data: DayPoint[];
   loading?: boolean;
   title?: string;
   subtitle?: string;
 }) {
+  const t = useT();
+  const series = SERIES_DEF.map((s) => ({ ...s, label: t(s.label) }));
   const last = data.length - 1;
   const rows = useMemo(
     () => data.map((d) => ({ day: fmtDate(d.day), scope: d.scope, done: d.done })),
@@ -33,59 +37,61 @@ export function BurnUpChart({
 
   return (
     <ChartCard
-      title={title}
-      subtitle={subtitle}
+      title={title ?? t("Burn-up")}
+      subtitle={subtitle ?? t("Cumulative done against total scope")}
       columns={[
-        { key: "day", label: "Day" },
-        { key: "done", label: "Done", align: "end" },
-        { key: "scope", label: "Scope", align: "end" },
+        { key: "day", label: t("Day") },
+        { key: "done", label: t("Done"), align: "end" },
+        { key: "scope", label: t("Scope"), align: "end" },
       ]}
       rows={rows}
       loading={loading}
       empty={empty}
       height={HEIGHT}
     >
-      <ResponsiveContainer width="100%" height={HEIGHT}>
-        <ComposedChart data={data} margin={{ top: 10, right: 56, bottom: 0, left: 0 }}>
-          <CartesianGrid vertical={false} stroke={CHROME.grid} strokeWidth={1} />
-          <XAxis dataKey="day" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHROME.axis }} tickFormatter={fmtShort} minTickGap={28} />
-          <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={30} allowDecimals={false} />
-          <Tooltip
-            cursor={LINE_CURSOR}
-            isAnimationActive={false}
-            content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} series={SERIES_DEF} labelFormatter={(l) => fmtDate(String(l))} />}
-          />
-          <Line
-            type="monotone"
-            dataKey="scope"
-            stroke={CHROME.deemphasis}
-            strokeWidth={2}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            dot={false}
-            activeDot={{ r: 4, strokeWidth: 2, stroke: CHROME.surface, fill: CHROME.deemphasis }}
-            isAnimationActive={false}
-          >
-            <LabelList dataKey="scope" content={(p) => <EndLabel {...p} last={last} name="scope" above />} />
-          </Line>
-          <Area
-            type="monotone"
-            dataKey="done"
-            stroke={SERIES[0]}
-            strokeWidth={2}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            fill={SERIES[0]}
-            fillOpacity={0.1}
-            dot={false}
-            activeDot={{ r: 4, strokeWidth: 2, stroke: CHROME.surface, fill: SERIES[0] }}
-            isAnimationActive={false}
-          >
-            <LabelList dataKey="done" content={(p) => <EndLabel {...p} last={last} name="done" />} />
-          </Area>
-        </ComposedChart>
-      </ResponsiveContainer>
-      <ChartLegend series={SERIES_DEF} />
+      <div className="ltr-island">
+        <ResponsiveContainer width="100%" height={HEIGHT}>
+          <ComposedChart data={data} margin={{ top: 10, right: 56, bottom: 0, left: 0 }}>
+            <CartesianGrid vertical={false} stroke={CHROME.grid} strokeWidth={1} />
+            <XAxis dataKey="day" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHROME.axis }} tickFormatter={fmtShort} minTickGap={28} />
+            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={30} allowDecimals={false} />
+            <Tooltip
+              cursor={LINE_CURSOR}
+              isAnimationActive={false}
+              content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} series={series} labelFormatter={(l) => fmtDate(String(l))} />}
+            />
+            <Line
+              type="monotone"
+              dataKey="scope"
+              stroke={CHROME.deemphasis}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: CHROME.surface, fill: CHROME.deemphasis }}
+              isAnimationActive={false}
+            >
+              <LabelList dataKey="scope" content={(p) => <EndLabel {...p} last={last} name={t("scope")} above />} />
+            </Line>
+            <Area
+              type="monotone"
+              dataKey="done"
+              stroke={SERIES[0]}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              fill={SERIES[0]}
+              fillOpacity={0.1}
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: CHROME.surface, fill: SERIES[0] }}
+              isAnimationActive={false}
+            >
+              <LabelList dataKey="done" content={(p) => <EndLabel {...p} last={last} name={t("done")} />} />
+            </Area>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <ChartLegend series={series} />
     </ChartCard>
   );
 }

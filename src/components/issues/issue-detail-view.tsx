@@ -14,6 +14,7 @@ import { useAllNotes, useProject } from "@/hooks/use-data";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { db } from "@/lib/db";
 import { ago, fmtDate } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { deleteIssue, updateIssue } from "@/lib/repo";
 import { issueKey, type Issue, type IssueEvent, type Project } from "@/lib/types";
 import { backlinksTo } from "@/lib/wikilinks";
@@ -24,6 +25,7 @@ import { AssigneePicker, CyclePicker, DueDatePicker, EstimateInput, LabelsEditor
 import { isEditableTarget, inOverlay, issueHref, safeWrite, useIssueEvents, useProjectCycles, useProjectIssues, useProjectMilestones } from "./issue-utils";
 
 export function IssueDetailView() {
+  const t = useT();
   const { id, seq } = useParams<{ id: string; seq: string }>();
   const project = useProject(id);
   // null while loading, undefined when the query resolves to nothing.
@@ -44,9 +46,9 @@ export function IssueDetailView() {
   }
   if (!issue) {
     return (
-      <EmptyState title="Issue not found" description={`There is no ${project?.key ?? "issue"}-${seq} in this project. It may have been deleted.`}>
+      <EmptyState title={t("Issue not found")} description={t("There is no {key} in this project. It may have been deleted.", { key: `${project?.key ?? "issue"}-${seq}` })}>
         <Button asChild variant="outline" size="sm">
-          <Link href={`/projects/${id}/issues`}><ArrowLeft /> Back to issues</Link>
+          <Link href={`/projects/${id}/issues`}><ArrowLeft className="rtl:rotate-180" /> {t("Back to issues")}</Link>
         </Button>
       </EmptyState>
     );
@@ -55,6 +57,7 @@ export function IssueDetailView() {
 }
 
 function IssueDetail({ issue, project }: { issue: Issue; project: Project | null }) {
+  const t = useT();
   const router = useRouter();
   const key = project ? issueKey(project, issue) : `#${issue.seq}`;
   const siblings = useProjectIssues(issue.projectId);
@@ -84,18 +87,18 @@ function IssueDetail({ issue, project }: { issue: Issue; project: Project | null
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <Button asChild variant="ghost" size="sm" className="-ms-2 text-muted-foreground">
-          <Link href={`/projects/${issue.projectId}/issues`}><ArrowLeft /> Issues</Link>
+          <Link href={`/projects/${issue.projectId}/issues`}><ArrowLeft className="rtl:rotate-180" /> {t("Issues")}</Link>
         </Button>
         <IssueKey className="text-sm">{key}</IssueKey>
         <div className="ms-auto flex items-center gap-1">
-          <Button asChild={Boolean(prev)} variant="ghost" size="sm" disabled={!prev} aria-label="Previous issue" className="text-muted-foreground">
+          <Button asChild={Boolean(prev)} variant="ghost" size="sm" disabled={!prev} aria-label={t("Previous issue")} className="text-muted-foreground">
             {prev ? (
               <Link href={issueHref(prev)}><ChevronLeft className="rtl:rotate-180" /> {project ? issueKey(project, prev) : `#${prev.seq}`} <Kbd>[</Kbd></Link>
             ) : (
               <span><ChevronLeft className="rtl:rotate-180" /> <Kbd>[</Kbd></span>
             )}
           </Button>
-          <Button asChild={Boolean(next)} variant="ghost" size="sm" disabled={!next} aria-label="Next issue" className="text-muted-foreground">
+          <Button asChild={Boolean(next)} variant="ghost" size="sm" disabled={!next} aria-label={t("Next issue")} className="text-muted-foreground">
             {next ? (
               <Link href={issueHref(next)}><Kbd>]</Kbd> {project ? issueKey(project, next) : `#${next.seq}`} <ChevronRight className="rtl:rotate-180" /></Link>
             ) : (
@@ -112,7 +115,7 @@ function IssueDetail({ issue, project }: { issue: Issue; project: Project | null
             <DescriptionEditor issue={issue} />
           </div>
 
-          <Section title="Activity">
+          <Section title={t("Activity")}>
             {events.length ? (
               <ol className="space-y-1.5 text-sm">
                 {[...events].reverse().map((e) => (
@@ -120,14 +123,14 @@ function IssueDetail({ issue, project }: { issue: Issue; project: Project | null
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-muted-foreground">No activity recorded.</p>
+              <p className="text-sm text-muted-foreground">{t("No activity recorded.")}</p>
             )}
           </Section>
 
-          <Section title="Pull requests and commits">
+          <Section title={t("Pull requests and commits")}>
             <GithubLinks issueId={issue.id} />
           </Section>
-          <Section title="Mentioned in">
+          <Section title={t("Mentioned in")}>
             {mentions.length ? (
               <ul className="divide-y rounded-lg border">
                 {mentions.map((n) => (
@@ -143,7 +146,7 @@ function IssueDetail({ issue, project }: { issue: Issue; project: Project | null
               </ul>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No notes link here yet. Write <code className="rounded bg-muted px-1 font-mono text-xs">[[{key}]]</code> in a note to mention it.
+                {t("No notes link here yet. Write")} <code className="rounded bg-muted px-1 font-mono text-xs">[[{key}]]</code> {t("in a note to mention it.")}
               </p>
             )}
           </Section>
@@ -151,21 +154,21 @@ function IssueDetail({ issue, project }: { issue: Issue; project: Project | null
 
         <aside className="space-y-5 lg:border-s lg:ps-6">
           <dl className="space-y-2.5 text-sm">
-            <Property label="Status"><StatusPicker issue={issue} full /></Property>
-            <Property label="Priority"><PriorityPicker issue={issue} full /></Property>
-            <Property label="Assignee"><AssigneePicker issue={issue} full /></Property>
-            <Property label="Milestone"><MilestonePicker issue={issue} milestones={milestones} full /></Property>
-            {project?.cycleConfig?.enabled ? <Property label="Cycle"><CyclePicker issue={issue} cycles={cycles} full /></Property> : null}
-            <Property label="Due date"><DueDatePicker issue={issue} full /></Property>
-            <Property label="Estimate"><EstimateInput issue={issue} /></Property>
-            <Property label="Labels" align="start"><LabelsEditor issue={issue} className="min-h-7 rounded-lg border px-2 py-1" /></Property>
+            <Property label={t("Status")}><StatusPicker issue={issue} full /></Property>
+            <Property label={t("Priority")}><PriorityPicker issue={issue} full /></Property>
+            <Property label={t("Assignee")}><AssigneePicker issue={issue} full /></Property>
+            <Property label={t("Milestone")}><MilestonePicker issue={issue} milestones={milestones} full /></Property>
+            {project?.cycleConfig?.enabled ? <Property label={t("Cycle")}><CyclePicker issue={issue} cycles={cycles} full /></Property> : null}
+            <Property label={t("Due date")}><DueDatePicker issue={issue} full /></Property>
+            <Property label={t("Estimate")}><EstimateInput issue={issue} /></Property>
+            <Property label={t("Labels")} align="start"><LabelsEditor issue={issue} className="min-h-7 rounded-lg border px-2 py-1" /></Property>
           </dl>
 
           <dl className="space-y-1 border-t pt-4 text-xs text-muted-foreground">
-            <Stamp label="Created" at={issue.createdAt} />
-            <Stamp label="Updated" at={issue.updatedAt} />
-            <Stamp label="Started" at={issue.startedAt} />
-            <Stamp label="Completed" at={issue.completedAt} />
+            <Stamp label={t("Created")} at={issue.createdAt} />
+            <Stamp label={t("Updated")} at={issue.updatedAt} />
+            <Stamp label={t("Started")} at={issue.startedAt} />
+            <Stamp label={t("Completed")} at={issue.completedAt} />
           </dl>
 
           <DeleteIssueButton issue={issue} keyLabel={key} onDeleted={() => router.push(`/projects/${issue.projectId}/issues`)} />
@@ -195,6 +198,7 @@ function Stamp({ label, at }: { label: string; at?: string }) {
 }
 
 function ActivityItem({ event }: { event: IssueEvent }) {
+  const t = useT();
   return (
     <li className="flex flex-wrap items-center gap-1.5">
       <StatusIcon status={event.to} />
@@ -206,7 +210,7 @@ function ActivityItem({ event }: { event: IssueEvent }) {
         </span>
       ) : (
         <span>
-          Created in <span className="font-medium">{statusLabel(event.to)}</span>
+          {t("Created in")} <span className="font-medium">{statusLabel(event.to)}</span>
         </span>
       )}
       <span className="ms-auto text-xs text-muted-foreground" title={fmtDate(event.at, "d MMM yyyy HH:mm")}>
@@ -217,18 +221,19 @@ function ActivityItem({ event }: { event: IssueEvent }) {
 }
 
 function TitleInput({ issue }: { issue: Issue }) {
+  const t = useT();
   const [value, setValue] = useState(issue.title);
   function commit() {
-    const t = value.trim();
-    if (!t) return setValue(issue.title);
-    if (t !== issue.title) void safeWrite(() => updateIssue(issue.id, { title: t }));
+    const next = value.trim();
+    if (!next) return setValue(issue.title);
+    if (next !== issue.title) void safeWrite(() => updateIssue(issue.id, { title: next }));
   }
   return (
     <input
       value={value}
       dir="auto"
-      aria-label="Title"
-      placeholder="Untitled"
+      aria-label={t("Title")}
+      placeholder={t("Untitled")}
       className="w-full rounded-md bg-transparent px-1 py-0.5 text-xl font-semibold tracking-tight outline-none -ms-1 hover:bg-muted/50 focus:bg-muted/50"
       onChange={(e) => setValue(e.target.value)}
       onBlur={commit}
@@ -246,38 +251,40 @@ function TitleInput({ issue }: { issue: Issue }) {
 }
 
 function DescriptionEditor({ issue }: { issue: Issue }) {
+  const t = useT();
   const [value, setValue] = useState(issue.description);
   useDebouncedSave(value, (v) => safeWrite(() => updateIssue(issue.id, { description: v })), 600, true, issue.description);
-  return <MarkdownEditor value={value} onChange={setValue} minRows={8} placeholder="Describe the issue. Markdown, [[ links notes and other issues." aiContext={{ projectId: issue.projectId }} />;
+  return <MarkdownEditor value={value} onChange={setValue} minRows={8} placeholder={t("Describe the issue. Markdown, [[ links notes and other issues.")} aiContext={{ projectId: issue.projectId }} />;
 }
 
 function DeleteIssueButton({ issue, keyLabel, onDeleted }: { issue: Issue; keyLabel: string; onDeleted: () => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   async function confirm() {
     setBusy(true);
     try {
       await deleteIssue(issue.id);
-      toast.success(`Deleted ${keyLabel}`);
+      toast.success(t("Deleted {key}", { key: keyLabel }));
       onDeleted();
     } catch (e) {
-      toast.error("Could not delete", { description: e instanceof Error ? e.message : undefined });
+      toast.error(t("Could not delete"), { description: e instanceof Error ? e.message : undefined });
       setBusy(false);
     }
   }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => setOpen(true)}>
-        <Trash2 /> Delete issue
+        <Trash2 /> {t("Delete issue")}
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete {keyLabel}?</DialogTitle>
-          <DialogDescription>This removes the issue and its activity. Notes that mention it keep the link, which will show as missing.</DialogDescription>
+          <DialogTitle>{t("Delete {key}?", { key: keyLabel })}</DialogTitle>
+          <DialogDescription>{t("This removes the issue and its activity. Notes that mention it keep the link, which will show as missing.")}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button type="button" variant="destructive" onClick={confirm} disabled={busy} autoFocus>Delete</Button>
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t("Cancel")}</Button>
+          <Button type="button" variant="destructive" onClick={confirm} disabled={busy} autoFocus>{t("Delete")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

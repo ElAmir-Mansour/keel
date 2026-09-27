@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PersonAvatar, ProjectChip } from "@/components/ui-bits";
 import { ago, fmtShort, isOverdue } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { RISK_KINDS, RISK_STATUSES, riskScore, type Person, type Project, type Risk, type RiskStatus } from "@/lib/types";
 
 // Likelihood × impact, 1–25. Bands match the dashboard's heat map.
@@ -19,13 +20,14 @@ export function severity(score: number) {
 
 export function SeverityChip({ score, className }: { score: number; className?: string }) {
   const s = severity(score);
+  const t = useT();
   return (
     <span
       className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium tabular", className)}
       style={{ borderColor: `color-mix(in oklab, ${s.color} 40%, transparent)`, backgroundColor: `color-mix(in oklab, ${s.color} 10%, transparent)` }}
     >
       <s.Icon className="size-3" style={{ color: s.color }} />
-      {score} · {s.label}
+      {score} · {t(s.label)}
     </span>
   );
 }
@@ -96,7 +98,7 @@ export function RiskTable({
   showProject = true,
   onOpen,
   loading = false,
-  emptyText = "No risks match.",
+  emptyText,
 }: {
   risks: Risk[];
   projects: Project[];
@@ -106,6 +108,7 @@ export function RiskTable({
   loading?: boolean;
   emptyText?: string;
 }) {
+  const t = useT();
   const [sort, setSort] = useState<Sort>({ key: "score", dir: -1 });
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
@@ -123,30 +126,30 @@ export function RiskTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-24">Kind</TableHead>
-            <TableHead className="w-24">Ref</TableHead>
+            <TableHead className="w-24">{t("Kind")}</TableHead>
+            <TableHead className="w-24">{t("Ref")}</TableHead>
             <SortHead k="title" sort={sort} onToggle={toggle}>
-              Title
+              {t("Title")}
             </SortHead>
-            {showProject ? <TableHead className="w-36 max-md:hidden">Project</TableHead> : null}
-            <TableHead className="w-10 text-center max-lg:hidden" title="Likelihood">
-              L
+            {showProject ? <TableHead className="w-36 max-md:hidden">{t("Project")}</TableHead> : null}
+            <TableHead className="w-10 text-center max-lg:hidden" title={t("Likelihood")}>
+              {t("L")}
             </TableHead>
-            <TableHead className="w-10 text-center max-lg:hidden" title="Impact">
-              I
+            <TableHead className="w-10 text-center max-lg:hidden" title={t("Impact")}>
+              {t("I")}
             </TableHead>
             <SortHead k="score" sort={sort} onToggle={toggle} className="w-36">
-              Score
+              {t("Score")}
             </SortHead>
             <SortHead k="status" sort={sort} onToggle={toggle} className="w-32 max-sm:hidden">
-              Status
+              {t("Status")}
             </SortHead>
-            <TableHead className="w-12">Owner</TableHead>
+            <TableHead className="w-12">{t("Owner")}</TableHead>
             <SortHead k="due" sort={sort} onToggle={toggle} className="w-28 max-md:hidden">
-              Due
+              {t("Due")}
             </SortHead>
             <SortHead k="updated" sort={sort} onToggle={toggle} className="w-28 max-lg:hidden">
-              Updated
+              {t("Updated")}
             </SortHead>
           </TableRow>
         </TableHeader>
@@ -175,7 +178,7 @@ export function RiskTable({
                   >
                     <TableCell>
                       <Badge variant="outline" className="font-normal">
-                        {riskKindLabel(r.kind)}
+                        {t(riskKindLabel(r.kind))}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{riskKey(project, r)}</TableCell>
@@ -193,7 +196,7 @@ export function RiskTable({
                     <TableCell className="max-sm:hidden">
                       <span className="inline-flex items-center gap-1.5 text-xs">
                         <RiskStatusIcon status={r.status} />
-                        {riskStatusLabel(r.status)}
+                        {t(riskStatusLabel(r.status))}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -203,7 +206,7 @@ export function RiskTable({
                       {r.dueDate ? (
                         <>
                           {fmtShort(r.dueDate)}
-                          {overdue ? " · overdue" : ""}
+                          {overdue ? ` · ${t("overdue")}` : ""}
                         </>
                       ) : (
                         "—"
@@ -218,7 +221,7 @@ export function RiskTable({
           {!loading && rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={cols} className="py-10 text-center text-sm text-muted-foreground">
-                {emptyText}
+                {emptyText ?? t("No risks match.")}
               </TableCell>
             </TableRow>
           ) : null}

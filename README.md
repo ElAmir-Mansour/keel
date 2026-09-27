@@ -21,7 +21,12 @@ the assistant a question.
 | **Risks** | A RAID register per project and across projects, scored likelihood × impact, with a 5 × 5 matrix on the dashboard. |
 | **Health** | A weekly project update — on track / at risk / off track — drafted from the week's activity in one click. |
 | **Dashboard** | Burn-up with a scope line, cumulative flow, throughput, cycle-time distribution, milestone progress, workload by person (framed as capacity, not a scorecard). No velocity, no vanity. |
-| **Assistant** | Ask questions across the vault, summarise a note, improve its writing, extract tasks into issues, draft the weekly update. Bring your own Anthropic key; it is stored only in your browser. |
+| **Assistant** | Ask questions across the vault with numbered citations that link back to the note, issue or decision. Summarise a note, improve its writing, extract tasks, draft the weekly update. Ask it to *do* things and it proposes actions (create issues, log a decision, write a note, update an issue, add a risk) that you approve one by one before anything is written. Bring your own Anthropic key; it is stored only in your browser. |
+| **Cycles** | Optional fixed-length cycles per project. One active, one upcoming; when a cycle ends, unfinished work rolls forward on its own. Saved views keep your favourite filters one click away. |
+| **GitHub** | Link pull requests and commits to issues by key, straight from the browser. Optionally let an opened PR move the issue to review and a merged PR close it, stamped with GitHub's own times. |
+| **Weekly digest** | Once a week, on the day you choose, a digest note is written for every active project: health, what shipped, what is next, risks and asks. The assistant writes it when you have a key; otherwise it is drafted from the facts. |
+| **Semantic search** | Optional, on-device: a small embedding model runs in the browser so search and the assistant find notes by meaning, in English or Arabic. |
+| **Install** | Installs as an app (PWA) and opens offline. Arabic interface with right-to-left layout is a switch in Settings. |
 
 Everything is reachable from the keyboard: `⌘K` opens the palette (it shows every shortcut),
 `C` new issue, `N` new note, `T` today's note, `A` ask the assistant, `G` then a letter to jump.
@@ -93,6 +98,9 @@ deployment, or strangers will spend your credits.
 | `pnpm build` / `pnpm start` | production build and server |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | TypeScript, no emit |
+| `pnpm test` | unit tests (Vitest) |
+| `pnpm test:e2e` | end-to-end tests (Playwright) against a production build |
+| `pnpm local` | build once and serve on :3456 |
 
 ## How it is built
 
@@ -109,12 +117,15 @@ pages only read. `metrics.ts` is pure functions from records to chart series.
 
 The research behind the feature choices is in [`docs/RESEARCH.md`](docs/RESEARCH.md).
 
+### Bring your data with you
+
+Settings → Import reads an **Obsidian vault** (any folder of Markdown files; front-matter becomes properties, `[[links]]` keep working), a **Linear** CSV export (teams become projects, Linear projects become milestones) or a **Jira** CSV export (sprints or parents become milestones). You see a preview before anything is written.
+
 ## Roadmap
 
-- Cycles with automatic roll-over, optional.
-- Arabic UI strings and a full RTL layout pass (content is already bidirectional).
-- Import from Linear and Jira exports; Obsidian vault import (folder of `.md`).
-- PWA install and offline caching of the shell.
+- Shared workspaces with sign-in for a whole team.
+- Notes as Markdown files on disk, so an Obsidian vault can be opened in place.
+- Mobile capture: quick notes and issues from the home screen shortcut.
 
 ## Licence
 

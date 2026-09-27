@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fmtShort, parseYMD, todayYMD, ymd } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import type { Project } from "@/lib/types";
 import { ProjectDot } from "@/components/ui-bits";
 
@@ -15,6 +16,7 @@ import { ProjectDot } from "@/components/ui-bits";
 
 export type RangeKey = "7" | "30" | "90" | "q";
 
+// Labels stay English here and are translated at render with t(label).
 export const RANGE_PRESETS: { value: RangeKey; label: string }[] = [
   { value: "7", label: "Last 7 days" },
   { value: "30", label: "Last 30 days" },
@@ -91,10 +93,11 @@ export function DateRangeRow({
   projects?: Project[];
   className?: string;
 }) {
+  const t = useT();
   const { range, projectId, from, to, setRange, setProject } = value;
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <div role="group" aria-label="Date range" className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-0.5">
+      <div role="group" aria-label={t("Date range")} className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-0.5">
         {RANGE_PRESETS.map((p) => (
           <Button
             key={p.value}
@@ -104,7 +107,7 @@ export function DateRangeRow({
             className={cn("h-7", range === p.value ? "bg-background shadow-xs" : "text-muted-foreground")}
             onClick={() => setRange(p.value)}
           >
-            {p.label}
+            {t(p.label)}
           </Button>
         ))}
       </div>
@@ -113,11 +116,11 @@ export function DateRangeRow({
       </span>
       {projects ? (
         <Select value={projectId ?? "all"} onValueChange={(v) => setProject(v === "all" ? undefined : v)}>
-          <SelectTrigger size="sm" className="ms-auto min-w-40" aria-label="Project">
-            <SelectValue placeholder="All projects" />
+          <SelectTrigger size="sm" className="ms-auto min-w-40" aria-label={t("Project")}>
+            <SelectValue placeholder={t("All projects")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All projects</SelectItem>
+            <SelectItem value="all">{t("All projects")}</SelectItem>
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 <ProjectDot project={p} />

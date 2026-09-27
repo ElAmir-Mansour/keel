@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n";
 
 /**
  * One confirm dialog for every destructive action. `typeToConfirm` asks for
@@ -29,6 +30,7 @@ export function ConfirmDialog({
 }) {
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const ready = !typeToConfirm || typed === typeToConfirm;
 
   async function confirm() {
@@ -61,8 +63,8 @@ export function ConfirmDialog({
             autoFocus
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            placeholder={`Type ${typeToConfirm} to confirm`}
-            aria-label={`Type ${typeToConfirm} to confirm`}
+            placeholder={t("Type {word} to confirm", { word: typeToConfirm })}
+            aria-label={t("Type {word} to confirm", { word: typeToConfirm })}
             onKeyDown={(e) => {
               if (e.key === "Enter") void confirm();
             }}
@@ -70,10 +72,10 @@ export function ConfirmDialog({
         ) : null}
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button variant={destructive ? "destructive" : "default"} onClick={() => void confirm()} disabled={!ready || busy} autoFocus={!typeToConfirm}>
-            {confirmLabel}
+            {t(confirmLabel)}
           </Button>
         </DialogFooter>
       </DialogContent>

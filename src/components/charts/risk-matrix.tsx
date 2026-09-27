@@ -8,6 +8,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { STATUS_COLOR } from "@/lib/chart-theme";
+import { useT } from "@/lib/i18n";
 import { riskMatrix } from "@/lib/metrics";
 import { RISK_STATUSES, riskScore, type Project, type Risk } from "@/lib/types";
 import { ProjectDot } from "@/components/ui-bits";
@@ -26,6 +27,7 @@ export function scoreBand(score: number): Band {
   return "good";
 }
 
+// Labels stay English here and are translated at render with t(label).
 export const BAND_LABEL: Record<Band, string> = {
   good: "Low (≤4)",
   warning: "Moderate (5–9)",
@@ -39,8 +41,8 @@ export function RiskMatrixCard({
   risks,
   projects,
   loading,
-  title = "Risk matrix",
-  subtitle = "Open risks by likelihood and impact",
+  title,
+  subtitle,
   showProject = true,
 }: {
   risks: Risk[];
@@ -50,12 +52,14 @@ export function RiskMatrixCard({
   subtitle?: string;
   showProject?: boolean;
 }) {
+  const t = useT();
   const [table, setTable] = useState(false);
   const open = useMemo(() => risks.filter((r) => r.status !== "closed"), [risks]);
   const grid = useMemo(() => riskMatrix(open), [open]);
   const top = useMemo(() => [...open].sort((a, b) => riskScore(b) - riskScore(a) || a.updatedAt.localeCompare(b.updatedAt)).slice(0, 5), [open]);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
+  // Band is kept as its English key here and translated where the rows are rendered.
   const tableRows = useMemo(() => {
     const rows: { impact: number; likelihood: number; score: number; band: string; count: number }[] = [];
     for (const i of [...SCALE].reverse()) for (const l of SCALE) rows.push({ impact: i, likelihood: l, score: i * l, band: BAND_LABEL[scoreBand(i * l)], count: grid[i][l] });
@@ -65,16 +69,16 @@ export function RiskMatrixCard({
   return (
     <Card size="sm" className="min-w-0">
       <CardHeader>
-        <CardTitle className="text-sm">{title}</CardTitle>
-        <CardDescription className="text-xs">{subtitle}</CardDescription>
+        <CardTitle className="text-sm">{title ?? t("Risk matrix")}</CardTitle>
+        <CardDescription className="text-xs">{subtitle ?? t("Open risks by likelihood and impact")}</CardDescription>
         <CardAction>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" aria-pressed={table} aria-label={table ? "Show grid" : "Show table"} onClick={() => setTable((v) => !v)}>
+              <Button variant="ghost" size="icon-xs" aria-pressed={table} aria-label={table ? t("Show grid") : t("Show table")} onClick={() => setTable((v) => !v)}>
                 {table ? <ChartColumn className="size-3.5" /> : <Table2 className="size-3.5" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{table ? "Show grid" : "Show as table"}</TooltipContent>
+            <TooltipContent>{table ? t("Show grid") : t("Show as table")}</TooltipContent>
           </Tooltip>
         </CardAction>
       </CardHeader>
@@ -85,13 +89,13 @@ export function RiskMatrixCard({
           <div className="max-h-52 overflow-auto">
             <DataTable
               columns={[
-                { key: "impact", label: "Impact", align: "end" },
-                { key: "likelihood", label: "Likelihood", align: "end" },
-                { key: "score", label: "Score", align: "end" },
-                { key: "band", label: "Band" },
-                { key: "count", label: "Open", align: "end" },
+                { key: "impact", label: t("Impact"), align: "end" },
+                { key: "likelihood", label: t("Likelihood"), align: "end" },
+                { key: "score", label: t("Score"), align: "end" },
+                { key: "band", label: t("Band") },
+                { key: "count", label: t("Open"), align: "end" },
               ]}
-              rows={tableRows}
+              rows={tableRows.map((r) => ({ ...r, band: t(r.band) }))}
             />
           </div>
         ) : (
@@ -104,26 +108,28 @@ export function RiskMatrixCard({
 }
 
 function Matrix({ grid }: { grid: number[][] }) {
+  const t = useT();
   return (
     <div className="flex gap-2">
       <div className="flex w-4 shrink-0 items-center justify-center">
-        <span className="-rotate-90 whitespace-nowrap text-[11px] text-muted-foreground">Impact →</span>
+        <span className="-rotate-90 whitespace-nowrap text-[11px] text-muted-foreground">{t("Impact →")}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="grid grid-cols-5 gap-0.5" role="grid" aria-label="Risk matrix">
+        <div className="grid grid-cols-5 gap-0.5" role="grid" aria-label={t("Risk matrix")}>
           {[...SCALE].reverse().map((impact) =>
             SCALE.map((likelihood) => {
               const score = impact * likelihood;
               const band = scoreBand(score);
               const count = grid[impact][likelihood];
               const color = STATUS_COLOR[band];
+              const bandLabel = t(BAND_LABEL[band]);
               return (
                 <Link
                   key={`${impact}-${likelihood}`}
                   role="gridcell"
                   href={`/risks?likelihood=${likelihood}&impact=${impact}`}
-                  aria-label={`Impact ${impact}, likelihood ${likelihood}: ${count} open, ${BAND_LABEL[band]}`}
-                  title={`Impact ${impact} × likelihood ${likelihood} = ${score} · ${BAND_LABEL[band]}`}
+                  aria-label={t("Impact {impact}, likelihood {likelihood}: {count} open, {band}", { impact, likelihood, count, band: bandLabel })}
+                  title={t("Impact {impact} × likelihood {likelihood} = {score} · {band}", { impact, likelihood, score, band: bandLabel })}
                   className={cn(
                     "flex aspect-[5/4] items-center justify-center rounded-[3px] text-sm font-medium ring-inset transition-[filter] hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring dark:hover:brightness-110",
                     count === 0 && "text-muted-foreground/50",
@@ -137,14 +143,14 @@ function Matrix({ grid }: { grid: number[][] }) {
           )}
         </div>
         <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-          <span>Likelihood 1</span>
-          <span>→ 5</span>
+          <span>{t("Likelihood 1")}</span>
+          <span>{t("→ 5")}</span>
         </div>
         <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           {(Object.keys(BAND_LABEL) as Band[]).map((b) => (
             <li key={b} className="flex items-center gap-1.5">
               <Swatch color={`color-mix(in oklab, ${STATUS_COLOR[b]} 42%, transparent)`} />
-              {BAND_LABEL[b]}
+              {t(BAND_LABEL[b])}
             </li>
           ))}
         </ul>
@@ -164,8 +170,9 @@ export function TopRisksTable({
   showProject?: boolean;
   loading?: boolean;
 }) {
+  const t = useT();
   if (loading) return null;
-  if (!risks.length) return <p className="text-xs text-muted-foreground">No open risks.</p>;
+  if (!risks.length) return <p className="text-xs text-muted-foreground">{t("No open risks.")}</p>;
   return (
     <ul className="divide-y text-xs">
       {risks.map((r) => {
@@ -177,12 +184,12 @@ export function TopRisksTable({
             <span
               className="flex size-6 shrink-0 items-center justify-center rounded-[4px] font-medium tabular-nums"
               style={{ backgroundColor: `color-mix(in oklab, ${STATUS_COLOR[band]} 42%, transparent)` }}
-              title={`${r.likelihood} × ${r.impact} · ${BAND_LABEL[band]}`}
+              title={`${r.likelihood} × ${r.impact} · ${t(BAND_LABEL[band])}`}
             >
               {score}
             </span>
             <Link href={`/projects/${r.projectId}/risks`} className="min-w-0 flex-1 truncate hover:underline" dir="auto">
-              {band === "critical" ? <AlertTriangle className="me-1 inline size-3 text-[var(--viz-critical)]" aria-label="Critical" /> : null}
+              {band === "critical" ? <AlertTriangle className="me-1 inline size-3 text-[var(--viz-critical)]" aria-label={t("Critical")} /> : null}
               {r.title}
             </Link>
             {showProject && p ? (
@@ -190,7 +197,7 @@ export function TopRisksTable({
                 <ProjectDot project={p} /> {p.key}
               </span>
             ) : null}
-            <span className="shrink-0 text-muted-foreground">{RISK_STATUSES.find((s) => s.value === r.status)?.label ?? r.status}</span>
+            <span className="shrink-0 text-muted-foreground">{t(RISK_STATUSES.find((s) => s.value === r.status)?.label ?? r.status)}</span>
           </li>
         );
       })}

@@ -3,6 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/db";
+import { useT } from "@/lib/i18n";
 import { createNote } from "@/lib/repo";
 import { NOTE_TEMPLATES } from "@/lib/templates";
 import { NOTE_KINDS, type NoteKind } from "@/lib/types";
@@ -16,6 +17,7 @@ import { NOTE_KINDS, type NoteKind } from "@/lib/types";
 export function NewNote() {
   const sp = useSearchParams();
   const router = useRouter();
+  const t = useT();
   // Strict mode runs effects twice; only one note may come out of it.
   const started = useRef(false);
 
@@ -42,7 +44,7 @@ export function NewNote() {
 
   return (
     <div className="space-y-4" aria-busy>
-      <p className="text-sm text-muted-foreground">Creating note…</p>
+      <p className="text-sm text-muted-foreground">{t("Creating note…")}</p>
       <Skeleton className="h-9 w-2/3" />
       <Skeleton className="h-64 w-full" />
     </div>

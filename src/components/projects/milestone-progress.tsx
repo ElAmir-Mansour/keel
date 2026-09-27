@@ -4,6 +4,7 @@ import { AlertTriangle, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SERIES, STATUS_COLOR } from "@/lib/chart-theme";
 import { daysUntil, fmtShort } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { milestoneProgress } from "@/lib/metrics";
 import type { Issue, Milestone, Project } from "@/lib/types";
 import { ProjectDot } from "@/components/ui-bits";
@@ -39,6 +40,7 @@ export function MilestoneRow({
   project?: Project;
   showProject?: boolean;
 }) {
+  const t = useT();
   const { total, done, pct } = milestoneProgress(milestone, issues);
   const days = milestone.status === "done" ? null : daysUntil(milestone.dueDate);
   const overdue = days !== null && days < 0 && pct < 100;
@@ -55,7 +57,7 @@ export function MilestoneRow({
         {milestone.dueDate ? (
           <span className={cn("inline-flex shrink-0 items-center gap-1 tabular-nums", overdue ? "text-[var(--viz-critical)]" : "text-muted-foreground")}>
             {overdue ? <AlertTriangle className="size-3" aria-hidden /> : <CalendarDays className="size-3" aria-hidden />}
-            {overdue ? `${Math.abs(days!)} d overdue` : fmtShort(milestone.dueDate)}
+            {overdue ? t("{n} d overdue", { n: Math.abs(days!) }) : fmtShort(milestone.dueDate)}
           </span>
         ) : null}
       </div>
@@ -69,7 +71,7 @@ export function MilestoneProgressList({
   issues,
   projects,
   showProject,
-  emptyText = "No active milestones.",
+  emptyText,
   className,
 }: {
   milestones: Milestone[];
@@ -79,8 +81,9 @@ export function MilestoneProgressList({
   emptyText?: string;
   className?: string;
 }) {
+  const t = useT();
   const byId = new Map((projects ?? []).map((p) => [p.id, p]));
-  if (!milestones.length) return <p className={cn("text-xs text-muted-foreground", className)}>{emptyText}</p>;
+  if (!milestones.length) return <p className={cn("text-xs text-muted-foreground", className)}>{emptyText ?? t("No active milestones.")}</p>;
   return (
     <ul className={cn("divide-y", className)}>
       {milestones.map((m) => (

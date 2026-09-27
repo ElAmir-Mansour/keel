@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { Files, Folder, FolderOpen, Hash, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { Note } from "@/lib/types";
 
 export interface FolderNode {
@@ -88,18 +89,19 @@ export function VaultRail({
   onTag: (tag: string) => void;
   className?: string;
 }) {
+  const t = useT();
   const tree = useMemo(() => buildFolderTree(notes), [notes]);
   const pinned = useMemo(() => notes.filter((n) => n.pinned).sort((a, b) => a.title.localeCompare(b.title)), [notes]);
   const tags = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const n of notes) for (const t of n.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+    for (const n of notes) for (const name of n.tags) counts.set(name, (counts.get(name) ?? 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [notes]);
 
   return (
-    <nav className={cn("space-y-5", className)} aria-label="Vault">
+    <nav className={cn("space-y-5", className)} aria-label={t("Vault")}>
       <section>
-        <h2 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Folders</h2>
+        <h2 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t("Folders")}</h2>
         <button
           type="button"
           onClick={() => onFolder("")}
@@ -107,7 +109,7 @@ export function VaultRail({
           className={cn("flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-start text-sm hover:bg-muted", !folder ? "bg-accent font-medium" : "text-foreground/80")}
         >
           <Files className="size-3.5 shrink-0 text-muted-foreground" />
-          All notes
+          {t("All notes")}
           <span className="ms-auto text-[11px] text-muted-foreground tabular">{notes.length}</span>
         </button>
         <FolderTree nodes={tree} depth={0} active={folder} onSelect={onFolder} />
@@ -115,7 +117,7 @@ export function VaultRail({
 
       {pinned.length ? (
         <section>
-          <h2 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Pinned</h2>
+          <h2 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t("Pinned")}</h2>
           <ul className="space-y-px">
             {pinned.map((n) => (
               <li key={n.id}>
@@ -133,22 +135,22 @@ export function VaultRail({
 
       {tags.length ? (
         <section>
-          <h2 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tags</h2>
+          <h2 className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t("Tags")}</h2>
           <div className="flex flex-wrap gap-1 px-2">
-            {tags.map(([t, count]) => (
+            {tags.map(([name, count]) => (
               <button
-                key={t}
+                key={name}
                 type="button"
-                onClick={() => onTag(tag === t ? "" : t)}
-                aria-pressed={tag === t}
+                onClick={() => onTag(tag === name ? "" : name)}
+                aria-pressed={tag === name}
                 className={cn(
                   "inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-xs hover:bg-muted",
-                  tag === t ? "border-foreground/40 bg-accent font-medium" : "border-transparent bg-secondary text-foreground/80",
+                  tag === name ? "border-foreground/40 bg-accent font-medium" : "border-transparent bg-secondary text-foreground/80",
                 )}
                 dir="auto"
               >
                 <Hash className="size-3 text-muted-foreground" />
-                {t}
+                {name}
                 <span className="ms-0.5 text-[10px] text-muted-foreground tabular">{count}</span>
               </button>
             ))}

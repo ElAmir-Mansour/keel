@@ -1,11 +1,13 @@
 "use client";
 import { useRef, useState } from "react";
+import { useMounted } from "@/hooks/use-mounted";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileSpreadsheet, FolderOpen, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT } from "@/lib/i18n";
 import { csvRecords } from "@/lib/import/csv";
 import type { ImportPlan } from "@/lib/import/common";
 import { isLinearCSV, planLinear } from "@/lib/import/linear";
@@ -46,6 +48,7 @@ async function readFileList(files: FileList): Promise<VaultFile[]> {
 }
 
 export function ImportSettings() {
+  const t = useT();
   const router = useRouter();
   const [vault, setVault] = useState<ObsidianPlan | null>(null);
   const [vaultMode, setVaultMode] = useState<"skip" | "overwrite">("skip");
@@ -53,7 +56,9 @@ export function ImportSettings() {
   const [busy, setBusy] = useState(false);
   const dirInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
-  const supportsPicker = typeof window !== "undefined" && typeof (window as PickerWindow).showDirectoryPicker === "function";
+  // Decided after mount so the server and the first client render agree.
+  const mounted = useMounted();
+  const supportsPicker = mounted && typeof (window as PickerWindow).showDirectoryPicker === "function";
 
   async function pickVault() {
     const picker = (window as PickerWindow).showDirectoryPicker;
@@ -86,7 +91,7 @@ export function ImportSettings() {
     const text = await f.text();
     const { headers } = csvRecords(text);
     const p = isJiraCSV(headers) ? planJira(text) : isLinearCSV(headers) ? planLinear(text) : planLinear(text);
-    if (!isJiraCSV(headers) && !isLinearCSV(headers)) p.warnings.unshift("Could not recognise the export; mapped it as Linear-style columns. Check the preview.");
+    if (!isJiraCSV(headers) && !isLinearCSV(headers)) p.warnings.unshift(t("Could not recognise the export; mapped it as Linear-style columns. Check the preview."));
     setPlan(p);
     e.target.value = "";
   }
@@ -96,7 +101,9 @@ export function ImportSettings() {
     setBusy(true);
     try {
       const r = await applyObsidianPlan(vault, vaultMode);
-      toast.success(`Imported ${r.notes} notes${r.updatedNotes ? `, updated ${r.updatedNotes}` : ""}`, { action: { label: "Open notes", onClick: () => router.push("/notes") } });
+      toast.success(`${t("Imported {n} notes", { n: r.notes })}${r.updatedNotes ? `, ${t("updated {n}", { n: r.updatedNotes })}` : ""}`, {
+        action: { label: t("Open notes"), onClick: () => router.push("/notes") },
+      });
       setVault(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -110,8 +117,9 @@ export function ImportSettings() {
     setBusy(true);
     try {
       const r = await applyIssuePlan(plan);
-      toast.success(`Imported ${r.issues} issues into ${r.projects ? `${r.projects} new project${r.projects === 1 ? "" : "s"}` : "existing projects"}${r.people ? `, ${r.people} people` : ""}`, {
-        action: { label: "Open projects", onClick: () => router.push("/projects") },
+      const target = r.projects ? (r.projects === 1 ? t("{n} new project", { n: r.projects }) : t("{n} new projects", { n: r.projects })) : t("existing projects");
+      toast.success(`${t("Imported {issues} issues into {target}", { issues: r.issues, target })}${r.people ? `, ${t("{n} people", { n: r.people })}` : ""}`, {
+        action: { label: t("Open projects"), onClick: () => router.push("/projects") },
       });
       setPlan(null);
     } catch (e) {
@@ -128,40 +136,40 @@ export function ImportSettings() {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={pickVault} disabled={busy}>
-            <FolderOpen /> Obsidian vault or folder of .md files
+            <FolderOpen /> {t("Obsidian vault or folder of .md files")}
           </Button>
           <input ref={dirInput} type="file" multiple className="hidden" onChange={onVaultFiles} {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-          {!supportsPicker ? <span className="text-xs text-muted-foreground">Your browser will ask for a folder to upload.</span> : null}
+          {mounted && !supportsPicker ? <span className="text-xs text-muted-foreground">{t("Your browser will ask for a folder to upload.")}</span> : null}
         </div>
         {vault ? (
           <div className="rounded-md border p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{vault.notes.length} notes</Badge>
-              {vault.skipped.length ? <span className="text-xs text-muted-foreground">{vault.skipped.length} non-markdown files skipped</span> : null}
+              <Badge variant="secondary">{t("{n} notes", { n: vault.notes.length })}</Badge>
+              {vault.skipped.length ? <span className="text-xs text-muted-foreground">{t("{n} non-markdown files skipped", { n: vault.skipped.length })}</span> : null}
               <Select value={vaultMode} onValueChange={(v) => setVaultMode(v as "skip" | "overwrite")}>
                 <SelectTrigger size="sm" className="w-auto">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="skip">Keep existing notes with the same title</SelectItem>
-                  <SelectItem value="overwrite">Overwrite notes with the same title</SelectItem>
+                  <SelectItem value="skip">{t("Keep existing notes with the same title")}</SelectItem>
+                  <SelectItem value="overwrite">{t("Overwrite notes with the same title")}</SelectItem>
                 </SelectContent>
               </Select>
               <Button size="sm" onClick={applyVault} disabled={busy || !vault.notes.length}>
-                <Upload /> Import notes
+                <Upload /> {t("Import notes")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setVault(null)}>
-                Cancel
+                {t("Cancel")}
               </Button>
             </div>
             <ul className="mt-2 max-h-40 overflow-auto text-xs text-muted-foreground">
               {vault.notes.slice(0, 12).map((n) => (
-                <li key={n.folder + n.title} className="truncate">
+                <li key={n.folder + n.title} className="truncate" dir="auto">
                   {n.folder}/{n.title} · {n.kind}
                   {n.tags.length ? ` · #${n.tags.join(" #")}` : ""}
                 </li>
               ))}
-              {vault.notes.length > 12 ? <li>… and {vault.notes.length - 12} more</li> : null}
+              {vault.notes.length > 12 ? <li>{t("… and {n} more", { n: vault.notes.length - 12 })}</li> : null}
             </ul>
           </div>
         ) : null}
@@ -170,25 +178,27 @@ export function ImportSettings() {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => csvInput.current?.click()} disabled={busy}>
-            <FileSpreadsheet /> Linear or Jira CSV export
+            <FileSpreadsheet /> {t("Linear or Jira CSV export")}
           </Button>
           <input ref={csvInput} type="file" accept=".csv,text/csv" className="hidden" onChange={onCsv} />
-          <span className="text-xs text-muted-foreground">Linear: team → Export CSV. Jira: Issues → Export → CSV (all fields).</span>
+          <span className="text-xs text-muted-foreground">{t("Linear: team → Export CSV. Jira: Issues → Export → CSV (all fields).")}</span>
         </div>
         {plan ? (
           <div className="rounded-md border p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{plan.source === "jira" ? "Jira" : "Linear"}</Badge>
-              <Badge variant="secondary">{plan.issues.length} issues</Badge>
+              <Badge variant="secondary">{t("{n} issues", { n: plan.issues.length })}</Badge>
               <span className="text-xs text-muted-foreground">
-                into {projectsInPlan.length} project{projectsInPlan.length === 1 ? "" : "s"}: {projectsInPlan.slice(0, 4).join(", ")}
+                {projectsInPlan.length === 1
+                  ? t("into {n} project: {list}", { n: projectsInPlan.length, list: projectsInPlan.slice(0, 4).join(", ") })
+                  : t("into {n} projects: {list}", { n: projectsInPlan.length, list: projectsInPlan.slice(0, 4).join(", ") })}
                 {projectsInPlan.length > 4 ? "…" : ""}
               </span>
               <Button size="sm" onClick={applyIssues} disabled={busy || !plan.issues.length}>
-                <Upload /> Import issues
+                <Upload /> {t("Import issues")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setPlan(null)}>
-                Cancel
+                {t("Cancel")}
               </Button>
             </div>
             {plan.warnings.map((w) => (
@@ -198,17 +208,21 @@ export function ImportSettings() {
             ))}
             {Object.keys(plan.unmappedStatuses).length ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                Statuses that will land in Backlog: {Object.entries(plan.unmappedStatuses).map(([k, n]) => `${k} (${n})`).join(", ")}
+                {t("Statuses that will land in Backlog: {list}", {
+                  list: Object.entries(plan.unmappedStatuses)
+                    .map(([k, n]) => `${k} (${n})`)
+                    .join(", "),
+                })}
               </p>
             ) : null}
             <ul className="mt-2 max-h-40 overflow-auto text-xs text-muted-foreground">
               {plan.issues.slice(0, 12).map((i) => (
-                <li key={(i.sourceKey ?? "") + i.title} className="truncate">
+                <li key={(i.sourceKey ?? "") + i.title} className="truncate" dir="auto">
                   {i.sourceKey ?? "•"} {i.title} · {i.status}
                   {i.assignee ? ` · ${i.assignee}` : ""}
                 </li>
               ))}
-              {plan.issues.length > 12 ? <li>… and {plan.issues.length - 12} more</li> : null}
+              {plan.issues.length > 12 ? <li>{t("… and {n} more", { n: plan.issues.length - 12 })}</li> : null}
             </ul>
           </div>
         ) : null}

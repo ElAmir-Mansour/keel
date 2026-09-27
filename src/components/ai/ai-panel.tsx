@@ -26,6 +26,7 @@ import { db } from "@/lib/db";
 import { updateNote } from "@/lib/repo";
 import { useUi, type AiRequest } from "@/lib/ui-store";
 import { cn } from "@/lib/utils";
+import { useLang, useT } from "@/lib/i18n";
 import { AiError, streamTurn, useAiModel } from "@/lib/ai/client";
 import { executeToolCall } from "@/lib/ai/actions";
 import { AI_TOOL_NAMES } from "@/lib/ai/tools";
@@ -96,6 +97,7 @@ interface PendingAction {
 }
 
 const RESERVED_FOR_EXCERPTS = 6_000;
+// English here; translated at render time with t().
 const SUGGESTIONS = ["What is in progress right now?", "Which risks need attention?", "What did we decide recently?"];
 
 async function buildContext(ids: Attach): Promise<ContextInfo> {
@@ -104,6 +106,7 @@ async function buildContext(ids: Attach): Promise<ContextInfo> {
     ids.noteId ? noteContext(ids.noteId) : null,
     ids.projectId ? projectContext(ids.projectId) : null,
   ]);
+  // Labels stay English; the panel translates them with t() when it lists them.
   const parts = [
     { label: "Workspace overview", text: overview },
     note ? { label: "Note", text: note } : null,
@@ -123,6 +126,8 @@ function fmtChars(n: number) {
 }
 
 export function AiPanel() {
+  const t = useT();
+  const lang = useLang();
   const { ai, closeAI } = useUi();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [attach, setAttach] = useState<Attach>({});
@@ -172,6 +177,7 @@ export function AiPanel() {
       const mirror = () => patch(asstId, { toolCalls: calls.map((c) => ({ ...c })) });
       if (choice === "skip") {
         call.status = "skipped";
+        // Goes back to the model as a tool result, so it stays English; the card translates it.
         call.result = "Skipped by the user.";
       } else {
         call.status = "running";
@@ -210,11 +216,11 @@ export function AiPanel() {
   const run = useCallback(async (action: AiAction, prompt: string, ids: Attach) => {
     if (abortRef.current) return;
     if (action !== "ask" && action !== "weekly" && !ids.noteId) {
-      toast.error("Attach a note first");
+      toast.error(t("Attach a note first"));
       return;
     }
     if (action === "weekly" && !ids.projectId) {
-      toast.error("Attach a project first");
+      toast.error(t("Attach a project first"));
       return;
     }
     const controller = new AbortController();
@@ -241,7 +247,7 @@ export function AiPanel() {
       }
       patch(userId, { sent });
       wireRef.current.push({ role: "user", content: sent });
-      if (controller.signal.aborted) throw new AiError("aborted", "Stopped.");
+      if (controller.signal.aborted) throw new AiError("aborted", t("Stopped."));
       const tools = action === "ask" ? AI_TOOL_NAMES : undefined;
 
       // Up to five model turns: a turn that proposes actions waits for the
@@ -285,7 +291,7 @@ export function AiPanel() {
           patch(asstId, { status: "done", toolCalls: calls.map((x) => ({ ...x })) });
           const results = await new Promise<AiContentBlock[]>((resolve, reject) => {
             waitersRef.current.set(asstId, resolve);
-            controller.signal.addEventListener("abort", () => reject(new AiError("aborted", "Stopped.")), { once: true });
+            controller.signal.addEventListener("abort", () => reject(new AiError("aborted", t("Stopped."))), { once: true });
           });
           waitersRef.current.delete(asstId);
           wireRef.current.push({ role: "user", content: results });
@@ -295,7 +301,7 @@ export function AiPanel() {
         break;
       }
     } catch (err) {
-      const e = err instanceof AiError ? err : new AiError("server_error", "Something went wrong.");
+      const e = err instanceof AiError ? err : new AiError("server_error", t("Something went wrong."));
       if (asstId) {
         if (e.code === "aborted") patch(asstId, { status: "stopped" });
         else patch(asstId, { status: "error", error: { code: e.code, message: e.message } });
@@ -306,7 +312,7 @@ export function AiPanel() {
       abortRef.current = null;
       setBusy(false);
     }
-  }, [patch]);
+  }, [patch, t]);
 
   // Kick off a queued action once the request has been applied. Deferred a
   // tick so the effect starts a job rather than re-rendering synchronously,
@@ -357,7 +363,7 @@ export function AiPanel() {
         if (!open) closeAI();
       }}
     >
-      <SheetContent side="right" className="w-full gap-0 p-0 data-[side=right]:sm:max-w-xl">
+      <SheetContent side={lang === "ar" ? "left" : "right"} className="w-full gap-0 p-0 data-[side=left]:sm:max-w-xl data-[side=right]:sm:max-w-xl">
         {ai.open ? (
           <PanelBody
             messages={messages}
@@ -404,6 +410,7 @@ interface PanelBodyProps {
 
 function PanelBody(p: PanelBodyProps) {
   const { messages, attach, setAttach, searchVault, setSearchVault, draft, setDraft, ctx, busy, run, stop, retry, newChat, decide, decideAll } = p;
+  const t = useT();
   const model = useAiModel();
   const note = useLiveQuery(() => (attach.noteId ? db.notes.get(attach.noteId) : undefined), [attach.noteId]);
   const project = useLiveQuery(() => (attach.projectId ? db.projects.get(attach.projectId) : undefined), [attach.projectId]);
@@ -442,24 +449,24 @@ function PanelBody(p: PanelBodyProps) {
       <SheetHeader className="gap-2 border-b pe-12">
         <div className="flex flex-wrap items-center gap-2">
           <Sparkles className="size-4 text-muted-foreground" />
-          <SheetTitle>Assistant</SheetTitle>
+          <SheetTitle>{t("Assistant")}</SheetTitle>
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge variant="outline" className="font-normal">
                 {modelLabel(model)}
               </Badge>
             </TooltipTrigger>
-            <TooltipContent>Change the model in Settings</TooltipContent>
+            <TooltipContent>{t("Change the model in Settings")}</TooltipContent>
           </Tooltip>
           <Button variant="ghost" size="xs" className="ms-auto" onClick={newChat} disabled={!messages.length}>
-            <MessageSquarePlus /> New chat
+            <MessageSquarePlus /> {t("New chat")}
           </Button>
         </div>
         <SheetDescription className="sr-only">
-          Reads your vault and answers from it. Only the context listed here is sent, and only when you press send.
+          {t("Reads your vault and answers from it. Only the context listed here is sent, and only when you press send.")}
         </SheetDescription>
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-muted-foreground">Context:</span>
+          <span className="text-muted-foreground">{t("Context:")}</span>
           {note ? (
             <ContextChip icon={<FileText />} label={note.title} onRemove={() => setAttach({ ...attach, noteId: undefined })} />
           ) : null}
@@ -470,25 +477,25 @@ function PanelBody(p: PanelBodyProps) {
               onRemove={() => setAttach({ ...attach, projectId: undefined })}
             />
           ) : null}
-          {searchVault ? <ContextChip icon={<Search />} label="vault search" onRemove={() => setSearchVault(false)} /> : null}
-          {!note && !project && !searchVault ? <span className="text-muted-foreground">workspace overview only</span> : null}
+          {searchVault ? <ContextChip icon={<Search />} label={t("vault search")} onRemove={() => setSearchVault(false)} /> : null}
+          {!note && !project && !searchVault ? <span className="text-muted-foreground">{t("workspace overview only")}</span> : null}
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="ms-auto tabular-nums text-muted-foreground">{fmtChars(totalChars)} chars</span>
+              <span className="ms-auto tabular-nums text-muted-foreground">{t("{n} chars", { n: fmtChars(totalChars) })}</span>
             </TooltipTrigger>
             <TooltipContent className="max-w-64">
-              <p className="mb-1 font-medium">Sent with your next message</p>
+              <p className="mb-1 font-medium">{t("Sent with your next message")}</p>
               <ul className="space-y-0.5">
                 {ctx?.parts.map((x) => (
                   <li key={x.label} className="flex justify-between gap-3">
-                    <span>{x.label}</span>
+                    <span>{t(x.label)}</span>
                     <span className="tabular-nums">{fmtChars(x.chars)}</span>
                   </li>
                 ))}
                 {searchVault ? (
                   <li className="flex justify-between gap-3">
-                    <span>Vault excerpts</span>
-                    <span>up to {fmtChars(RESERVED_FOR_EXCERPTS)}</span>
+                    <span>{t("Vault excerpts")}</span>
+                    <span>{t("up to {n}", { n: fmtChars(RESERVED_FOR_EXCERPTS) })}</span>
                   </li>
                 ) : null}
               </ul>
@@ -501,19 +508,19 @@ function PanelBody(p: PanelBodyProps) {
         {note ? (
           <>
             <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("summarize")}>
-              <AlignLeft /> Summarize
+              <AlignLeft /> {t("Summarize")}
             </Button>
             <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("improve")}>
-              <PenLine /> Improve writing
+              <PenLine /> {t("Improve writing")}
             </Button>
             <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("tasks")}>
-              <ListChecks /> Extract tasks
+              <ListChecks /> {t("Extract tasks")}
             </Button>
           </>
         ) : null}
         {project ? (
           <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("weekly")}>
-            <CalendarClock /> Draft weekly update
+            <CalendarClock /> {t("Draft weekly update")}
           </Button>
         ) : null}
         <Button
@@ -525,7 +532,7 @@ function PanelBody(p: PanelBodyProps) {
             else textareaRef.current?.focus();
           }}
         >
-          <MessageSquare /> Ask
+          <MessageSquare /> {t("Ask")}
         </Button>
       </div>
 
@@ -542,10 +549,7 @@ function PanelBody(p: PanelBodyProps) {
           </div>
         ) : (
           <div className="space-y-3 py-6 text-sm text-muted-foreground">
-            <p>
-              Ask about anything in your vault — notes, issues, decisions, risks. Attach a note or a project from its
-              page for the one-click actions.
-            </p>
+            <p>{t("Ask about anything in your vault — notes, issues, decisions, risks. Attach a note or a project from its page for the one-click actions.")}</p>
             <div className="flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <Button
@@ -553,15 +557,15 @@ function PanelBody(p: PanelBodyProps) {
                   variant="outline"
                   size="xs"
                   onClick={() => {
-                    setDraft(s);
+                    setDraft(t(s));
                     textareaRef.current?.focus();
                   }}
                 >
-                  {s}
+                  {t(s)}
                 </Button>
               ))}
             </div>
-            <p className="text-xs">Nothing is sent until you press send. Only the context listed above goes to Anthropic.</p>
+            <p className="text-xs">{t("Nothing is sent until you press send. Only the context listed above goes to Anthropic.")}</p>
           </div>
         )}
       </div>
@@ -580,22 +584,22 @@ function PanelBody(p: PanelBodyProps) {
           dir="auto"
           rows={1}
           autoFocus
-          placeholder="Ask about your vault… Enter to send, Shift+Enter for a new line"
+          placeholder={t("Ask about your vault… Enter to send, Shift+Enter for a new line")}
           className="max-h-40 min-h-10 resize-none text-sm"
         />
         <div className="flex items-center gap-3">
           <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
             <Switch size="sm" checked={searchVault} onCheckedChange={setSearchVault} />
-            Search vault
+            {t("Search vault")}
           </label>
           <div className="ms-auto flex items-center gap-2">
             {busy ? (
               <Button size="sm" variant="outline" onClick={stop}>
-                <Square /> Stop
+                <Square /> {t("Stop")}
               </Button>
             ) : (
               <Button size="sm" disabled={!draft.trim()} onClick={submit}>
-                <ArrowUp /> Send
+                <ArrowUp /> {t("Send")}
               </Button>
             )}
           </div>
@@ -606,6 +610,7 @@ function PanelBody(p: PanelBodyProps) {
 }
 
 function ContextChip({ icon, label, onRemove }: { icon: React.ReactNode; label: string; onRemove: () => void }) {
+  const t = useT();
   return (
     <Badge variant="secondary" className="max-w-56 gap-1 pe-1 font-normal">
       {icon}
@@ -615,7 +620,7 @@ function ContextChip({ icon, label, onRemove }: { icon: React.ReactNode; label: 
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Remove ${label}`}
+        aria-label={t("Remove {label}", { label })}
         className="ms-0.5 rounded-full p-0.5 hover:bg-foreground/10"
       >
         <X className="size-3" />
@@ -625,31 +630,34 @@ function ContextChip({ icon, label, onRemove }: { icon: React.ReactNode; label: 
 }
 
 function UserMessage({ m }: { m: Msg }) {
+  const t = useT();
+  // A one-click action stores its English label (ACTION_LABELS) as the content; translate that, never a typed question.
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-sm whitespace-pre-wrap text-primary-foreground" dir="auto">
-        {m.content}
+        {m.action === "ask" ? m.content : t(m.content)}
       </div>
       {m.excerptChars ? (
-        <span className="text-[11px] text-muted-foreground">+ {fmtChars(m.excerptChars)} chars of vault excerpts</span>
+        <span className="text-[11px] text-muted-foreground">{t("+ {n} chars of vault excerpts", { n: fmtChars(m.excerptChars) })}</span>
       ) : null}
     </div>
   );
 }
 
 function AssistantMessage({ m, onRetry, onDecide, onDecideAll }: { m: Msg; onRetry: () => void; onDecide: (callId: string, choice: "apply" | "skip") => void; onDecideAll: (choice: "apply" | "skip") => void }) {
+  const t = useT();
   const streaming = m.status === "streaming";
   let body: React.ReactNode = null;
   if (m.action === "tasks") {
     body = streaming ? (
-      <Thinking label="Extracting tasks…" />
+      <Thinking label={t("Extracting tasks…")} />
     ) : m.content ? (
       <TasksProposal raw={m.content} noteId={m.noteId} projectId={m.projectId} />
     ) : null;
   } else if (m.content) {
     body = <MarkdownView body={m.sources?.length && !streaming ? withCitations(m.content, m.sources) : m.content} className="text-sm" />;
   } else if (streaming) {
-    body = <Thinking label="Thinking…" />;
+    body = <Thinking label={t("Thinking…")} />;
   } else if (m.toolCalls?.length) {
     body = null;
   }
@@ -657,8 +665,8 @@ function AssistantMessage({ m, onRetry, onDecide, onDecideAll }: { m: Msg; onRet
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Sparkles className="size-3" /> Assistant
-        {m.status === "stopped" ? <span>· stopped</span> : null}
+        <Sparkles className="size-3" /> {t("Assistant")}
+        {m.status === "stopped" ? <span>· {t("stopped")}</span> : null}
       </div>
       {body}
       {streaming && m.content && m.action !== "tasks" ? (
@@ -681,6 +689,7 @@ function Thinking({ label }: { label: string }) {
 }
 
 function ErrorNote({ error, onRetry }: { error: NonNullable<Msg["error"]>; onRetry: () => void }) {
+  const t = useT();
   const { closeAI } = useUi();
   const needsKey = error.code === "no_api_key" || error.code === "bad_key";
   return (
@@ -690,12 +699,12 @@ function ErrorNote({ error, onRetry }: { error: NonNullable<Msg["error"]>; onRet
         {needsKey ? (
           <Button asChild size="xs" variant="outline">
             <Link href="/settings" onClick={closeAI}>
-              Open Settings
+              {t("Open Settings")}
             </Link>
           </Button>
         ) : (
           <Button size="xs" variant="outline" onClick={onRetry}>
-            Retry
+            {t("Retry")}
           </Button>
         )}
       </div>
@@ -704,6 +713,7 @@ function ErrorNote({ error, onRetry }: { error: NonNullable<Msg["error"]>; onRet
 }
 
 function ResultActions({ m }: { m: Msg }) {
+  const t = useT();
   const router = useRouter();
   const note = useLiveQuery(() => (m.noteId ? db.notes.get(m.noteId) : undefined), [m.noteId]);
   const text = unfence(m.content);
@@ -712,8 +722,8 @@ function ResultActions({ m }: { m: Msg }) {
     if (!note) return;
     const previous = note.body;
     await updateNote(note.id, { body: text });
-    toast.success("Note body replaced", {
-      action: { label: "Undo", onClick: () => void updateNote(note.id, { body: previous }) },
+    toast.success(t("Note body replaced"), {
+      action: { label: t("Undo"), onClick: () => void updateNote(note.id, { body: previous }) },
     });
   }
 
@@ -721,8 +731,8 @@ function ResultActions({ m }: { m: Msg }) {
     if (!note) return;
     const previous = note.body;
     await updateNote(note.id, { body: `${text}\n\n${previous}`.trim() });
-    toast.success("Summary inserted at the top of the note", {
-      action: { label: "Open note", onClick: () => router.push(`/notes/${note.id}`) },
+    toast.success(t("Summary inserted at the top of the note"), {
+      action: { label: t("Open note"), onClick: () => router.push(`/notes/${note.id}`) },
     });
   }
 
@@ -731,7 +741,7 @@ function ResultActions({ m }: { m: Msg }) {
       return (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="xs" disabled={!note} onClick={replaceBody}>
-            <SquarePen /> Replace note body
+            <SquarePen /> {t("Replace note body")}
           </Button>
           <CopyButton text={text} />
         </div>
@@ -740,7 +750,7 @@ function ResultActions({ m }: { m: Msg }) {
       return (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="xs" disabled={!note} onClick={insertAtTop}>
-            <AlignLeft /> Insert at top of note
+            <AlignLeft /> {t("Insert at top of note")}
           </Button>
           <CopyButton text={text} />
         </div>

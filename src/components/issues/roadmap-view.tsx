@@ -5,6 +5,7 @@ import { GitBranch, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePeople, useProject } from "@/hooks/use-data";
 import { parseYMD, todayYMD } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { isOpen } from "@/lib/metrics";
 import { updateMilestone } from "@/lib/repo";
 import type { Milestone } from "@/lib/types";
@@ -16,6 +17,7 @@ import { RoadmapTimeline, computeRange, isMilestoneOverdue } from "./roadmap-tim
 import { compareIssues, safeWrite, useProjectIssues, useProjectMilestones } from "./issue-utils";
 
 export function RoadmapView() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const project = useProject(id);
   const issues = useProjectIssues(id);
@@ -41,7 +43,7 @@ export function RoadmapView() {
     [next[idx], next[target]] = [next[target], next[idx]];
     // Normalise to 0..n so gaps left by deletions do not accumulate.
     const writes = next.map((x, i) => (x.order === i ? null : updateMilestone(x.id, { order: i }))).filter(Boolean);
-    void safeWrite(() => Promise.all(writes), "Could not reorder");
+    void safeWrite(() => Promise.all(writes), t("Could not reorder"));
   }
 
   return (
@@ -50,12 +52,12 @@ export function RoadmapView() {
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {milestones.length ? (
             <span className="tabular">
-              {milestones.length} {milestones.length === 1 ? "milestone" : "milestones"} · {done} done
-              {overdue ? <span className="text-[var(--viz-critical)]"> · {overdue} overdue</span> : null}
+              {t(milestones.length === 1 ? "{n} milestone" : "{n} milestones", { n: milestones.length })} · {t("{n} done", { n: done })}
+              {overdue ? <span className="text-[var(--viz-critical)]"> · {t("{n} overdue", { n: overdue })}</span> : null}
             </span>
           ) : null}
           <Button type="button" size="sm" className="ms-auto h-7" onClick={() => setDialog({ open: true, milestone: null })}>
-            <Plus /> New milestone
+            <Plus /> {t("New milestone")}
           </Button>
         </div>
 
@@ -72,15 +74,15 @@ export function RoadmapView() {
             onMove={move}
           />
         ) : (
-          <EmptyState icon={<GitBranch />} title="No milestones yet" description="Milestones group issues into dated chunks of work: a release, a phase, a demo. The roadmap draws them on a timeline.">
+          <EmptyState icon={<GitBranch />} title={t("No milestones yet")} description={t("Milestones group issues into dated chunks of work: a release, a phase, a demo. The roadmap draws them on a timeline.")}>
             <Button type="button" size="sm" onClick={() => setDialog({ open: true, milestone: null })}>
-              <Plus /> New milestone
+              <Plus /> {t("New milestone")}
             </Button>
           </EmptyState>
         )}
       </div>
 
-      <Section title={`Issues without a milestone${unassigned.length ? ` · ${unassigned.length}` : ""}`}>
+      <Section title={`${t("Issues without a milestone")}${unassigned.length ? ` · ${unassigned.length}` : ""}`}>
         {unassigned.length ? (
           <div data-list-nav className="divide-y overflow-hidden rounded-lg border">
             {unassigned.map((issue) => (
@@ -94,7 +96,7 @@ export function RoadmapView() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">{issues.some(isOpen) ? "Every open issue has a milestone." : "No open issues."}</p>
+          <p className="text-sm text-muted-foreground">{issues.some(isOpen) ? t("Every open issue has a milestone.") : t("No open issues.")}</p>
         )}
       </Section>
 

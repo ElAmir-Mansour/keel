@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { db } from "@/lib/db";
+import { t } from "@/lib/i18n";
 import { PRIORITIES, type Cycle, type Issue, type IssueEvent, type Milestone, type Priority } from "@/lib/types";
 
 // Reads and small pure helpers shared by the issue pages. Writes still go
@@ -73,12 +74,12 @@ export function issueHref(i: Pick<Issue, "projectId" | "seq">) {
   return `/projects/${i.projectId}/issues/${i.seq}`;
 }
 
-/** Run a repo write; failures surface as a toast instead of an unhandled rejection. */
-export async function safeWrite(fn: () => Promise<unknown>, what = "Could not save") {
+/** Run a repo write; failures surface as a toast instead of an unhandled rejection. Callers pass an already-translated message. */
+export async function safeWrite(fn: () => Promise<unknown>, what?: string) {
   try {
     await fn();
   } catch (e) {
-    toast.error(what, { description: e instanceof Error ? e.message : undefined });
+    toast.error(what ?? t("Could not save"), { description: e instanceof Error ? e.message : undefined });
   }
 }
 

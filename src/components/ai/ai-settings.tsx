@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useT } from "@/lib/i18n";
 import { AI_MODELS, modelLabel, type AiModelId } from "@/lib/ai/models";
 import { AiError, fetchAiStatus, setApiKey, setModel, streamChat, useAiApiKey, useAiModel } from "@/lib/ai/client";
 
@@ -17,6 +18,7 @@ type TestState =
   | { kind: "fail"; detail: string };
 
 export function AiSettings() {
+  const t = useT();
   const stored = useAiApiKey();
   const model = useAiModel();
   const [edit, setEdit] = useState<string | null>(null);
@@ -40,14 +42,14 @@ export function AiSettings() {
   function save() {
     setApiKey(draft);
     setEdit(null);
-    toast.success(draft.trim() ? "API key saved in this browser" : "API key removed");
+    toast.success(draft.trim() ? t("API key saved in this browser") : t("API key removed"));
   }
 
   function clear() {
     setApiKey("");
     setEdit(null);
     setTest({ kind: "idle" });
-    toast.success("API key removed from this browser");
+    toast.success(t("API key removed from this browser"));
   }
 
   async function runTest() {
@@ -57,15 +59,16 @@ export function AiSettings() {
       const text = await streamChat(
         {
           model,
+          // Sent to the model: stays English.
           system: "You are a connectivity check. Reply with exactly: OK",
           messages: [{ role: "user", content: "ping" }],
           maxTokens: 256,
         },
         () => {},
       );
-      setTest({ kind: "ok", detail: `${modelLabel(model)} replied "${text.trim().slice(0, 40) || "…"}".` });
+      setTest({ kind: "ok", detail: t('{model} replied "{reply}".', { model: modelLabel(model), reply: text.trim().slice(0, 40) || "…" }) });
     } catch (err) {
-      setTest({ kind: "fail", detail: err instanceof AiError ? err.message : "Unexpected error." });
+      setTest({ kind: "fail", detail: err instanceof AiError ? err.message : t("Unexpected error.") });
     }
   }
 
@@ -74,15 +77,12 @@ export function AiSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI assistant</CardTitle>
-        <CardDescription>
-          The one feature that sends data off this device. Off until you add a key, and nothing is sent until you press
-          send.
-        </CardDescription>
+        <CardTitle>{t("AI assistant")}</CardTitle>
+        <CardDescription>{t("The one feature that sends data off this device. Off until you add a key, and nothing is sent until you press send.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="ai-key">Anthropic API key</Label>
+          <Label htmlFor="ai-key">{t("Anthropic API key")}</Label>
           <div className="flex items-center gap-2">
             <Input
               id="ai-key"
@@ -106,30 +106,27 @@ export function AiSettings() {
               variant="ghost"
               size="icon-sm"
               onClick={() => setShow((s) => !s)}
-              aria-label={show ? "Hide key" : "Show key"}
+              aria-label={show ? t("Hide key") : t("Show key")}
             >
               {show ? <EyeOff /> : <Eye />}
             </Button>
             <Button type="button" size="sm" onClick={save} disabled={!dirty}>
-              Save
+              {t("Save")}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={clear} disabled={!stored && !draft}>
-              Clear
+              {t("Clear")}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Saved locally in this browser only. It is never written to the workspace database, so it stays out of
-            exports and backups.
+            {t("Saved locally in this browser only. It is never written to the workspace database, so it stays out of exports and backups.")}
           </p>
           {serverKey ? (
-            <p className="text-xs text-muted-foreground">
-              This deployment provides a server-side key, so you can leave this empty. A key here takes precedence.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("This deployment provides a server-side key, so you can leave this empty. A key here takes precedence.")}</p>
           ) : null}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ai-model">Model</Label>
+          <Label htmlFor="ai-model">{t("Model")}</Label>
           <Select value={model} onValueChange={(v) => setModel(v as AiModelId)}>
             <SelectTrigger id="ai-model" className="min-w-56">
               <SelectValue />
@@ -137,12 +134,16 @@ export function AiSettings() {
             <SelectContent>
               {AI_MODELS.map((m) => (
                 <SelectItem key={m.id} value={m.id}>
-                  {m.label} <span className="text-muted-foreground">· {m.hint}</span>
+                  {m.label} <span className="text-muted-foreground">· {t(m.hint)}</span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {selectedModel ? <p className="text-xs text-muted-foreground">{selectedModel.cost}. Billed to your key.</p> : null}
+          {selectedModel ? (
+            <p className="text-xs text-muted-foreground">
+              {t(selectedModel.cost)}. {t("Billed to your key.")}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -155,11 +156,11 @@ export function AiSettings() {
               disabled={test.kind === "running" || (!draft.trim() && !serverKey)}
             >
               {test.kind === "running" ? <Loader2 className="animate-spin" /> : null}
-              Test connection
+              {t("Test connection")}
             </Button>
             {test.kind === "ok" ? (
               <span className="inline-flex items-center gap-1.5 text-sm text-[var(--viz-good)]">
-                <CheckCircle2 className="size-4" /> Connected. {test.detail}
+                <CheckCircle2 className="size-4" /> {t("Connected.")} {test.detail}
               </span>
             ) : test.kind === "fail" ? (
               <span className="inline-flex items-center gap-1.5 text-sm text-destructive">
@@ -167,24 +168,22 @@ export function AiSettings() {
               </span>
             ) : null}
           </div>
-          <p className="text-xs text-muted-foreground">Sends one tiny request (a few tokens) with the model above.</p>
+          <p className="text-xs text-muted-foreground">{t("Sends one tiny request (a few tokens) with the model above.")}</p>
         </div>
 
         <div className="space-y-2 text-sm">
-          <h3 className="font-medium">What leaves your browser</h3>
+          <h3 className="font-medium">{t("What leaves your browser")}</h3>
           <p className="text-muted-foreground">
-            Keel keeps everything in this browser. When you press send in the assistant, only the context listed in the
-            panel goes to Anthropic&apos;s API through this site&apos;s relay: the workspace overview, the attached
-            note or project, the vault excerpts matched to your question, and the conversation so far. The relay
-            forwards your key with that one request and keeps nothing. Close the panel and nothing else is ever sent.
+            {t(
+              "Keel keeps everything in this browser. When you press send in the assistant, only the context listed in the panel goes to Anthropic's API through this site's relay: the workspace overview, the attached note or project, the vault excerpts matched to your question, and the conversation so far. The relay forwards your key with that one request and keeps nothing. Close the panel and nothing else is ever sent.",
+            )}
           </p>
         </div>
 
         <div className="space-y-2 text-sm">
-          <h3 className="font-medium">Self-hosting with one shared key</h3>
+          <h3 className="font-medium">{t("Self-hosting with one shared key")}</h3>
           <p className="text-muted-foreground">
-            Operators can provide a key for everyone on their own instance by setting both variables. The key alone is
-            ignored, so a public deployment cannot spend the operator&apos;s credits by accident.
+            {t("Operators can provide a key for everyone on their own instance by setting both variables. The key alone is ignored, so a public deployment cannot spend the operator's credits by accident.")}
           </p>
           <pre className="overflow-auto rounded-md bg-muted p-3 font-mono text-xs" dir="ltr">
             {"ANTHROPIC_API_KEY=sk-ant-…\nKEEL_ALLOW_SERVER_KEY=true"}

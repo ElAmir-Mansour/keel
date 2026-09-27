@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db } from "@/lib/db";
 import { daysUntil, fmtShort } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { isOpen, milestoneProgress } from "@/lib/metrics";
 import type { Issue, Milestone, Person, Project, ProjectStatus, Update } from "@/lib/types";
 import { useUi } from "@/lib/ui-store";
@@ -18,6 +19,7 @@ import { EmptyState, HealthBadge, PageHeader, PersonAvatar, ProjectDot } from "@
 import { latestUpdates } from "@/components/dashboard/data";
 import { Meter } from "./milestone-progress";
 
+// Labels stay English here and are translated at render with t(label).
 const STATUS_FILTERS: { value: "all" | ProjectStatus; label: string }[] = [
   { value: "all", label: "All" },
   { value: "active", label: "Active" },
@@ -36,6 +38,7 @@ interface Data {
 }
 
 export function ProjectsList() {
+  const t = useT();
   const { openQuickCreate } = useUi();
   const [status, setStatus] = useState<"all" | ProjectStatus>("all");
   const [showArchived, setShowArchived] = useState(false);
@@ -77,17 +80,17 @@ export function ProjectsList() {
   return (
     <>
       <PageHeader
-        title="Projects"
-        description="Every project, its posted health and what is in flight."
+        title={t("Projects")}
+        description={t("Every project, its posted health and what is in flight.")}
         actions={
           <Button size="sm" onClick={() => openQuickCreate("project")}>
             <Plus className="size-4" />
-            New project
+            {t("New project")}
           </Button>
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Status" className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
+          <div role="group" aria-label={t("Status")} className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
             {STATUS_FILTERS.map((f) => (
               <Button
                 key={f.value}
@@ -97,14 +100,14 @@ export function ProjectsList() {
                 className={cn("h-7", status === f.value ? "bg-background shadow-xs" : "text-muted-foreground")}
                 onClick={() => setStatus(f.value)}
               >
-                {f.label}
+                {t(f.label)}
               </Button>
             ))}
           </div>
           {archivedCount ? (
             <Label className="ms-auto flex items-center gap-2 text-xs font-normal text-muted-foreground">
               <Switch checked={showArchived} onCheckedChange={setShowArchived} size="sm" />
-              Show archived ({archivedCount})
+              {t("Show archived ({n})", { n: archivedCount })}
             </Label>
           ) : null}
         </div>
@@ -117,23 +120,23 @@ export function ProjectsList() {
           <Skeleton className="h-9" />
         </div>
       ) : data.projects.length === 0 ? (
-        <EmptyState icon={<FolderKanban />} title="No projects yet" description="A project groups issues, milestones, risks and weekly updates.">
-          <Button onClick={() => openQuickCreate("project")}>New project</Button>
+        <EmptyState icon={<FolderKanban />} title={t("No projects yet")} description={t("A project groups issues, milestones, risks and weekly updates.")}>
+          <Button onClick={() => openQuickCreate("project")}>{t("New project")}</Button>
         </EmptyState>
       ) : rows.length === 0 ? (
-        <EmptyState title="Nothing matches this filter" description="Try another status, or include archived projects." />
+        <EmptyState title={t("Nothing matches this filter")} description={t("Try another status, or include archived projects.")} />
       ) : (
         <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Project</TableHead>
-                <TableHead>Health</TableHead>
-                <TableHead className="max-md:hidden">Status</TableHead>
-                <TableHead className="max-md:hidden">Lead</TableHead>
-                <TableHead className="max-sm:hidden">Target</TableHead>
-                <TableHead className="text-end">Open</TableHead>
-                <TableHead className="min-w-40">Progress</TableHead>
+                <TableHead>{t("Project")}</TableHead>
+                <TableHead>{t("Health")}</TableHead>
+                <TableHead className="max-md:hidden">{t("Status")}</TableHead>
+                <TableHead className="max-md:hidden">{t("Lead")}</TableHead>
+                <TableHead className="max-sm:hidden">{t("Target")}</TableHead>
+                <TableHead className="text-end">{t("Open")}</TableHead>
+                <TableHead className="min-w-40">{t("Progress")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -155,15 +158,17 @@ export function ProjectsList() {
                     <TableCell>
                       <HealthBadge health={update?.health} />
                     </TableCell>
-                    <TableCell className="text-muted-foreground max-md:hidden">{STATUS_LABEL[p.status]}</TableCell>
+                    <TableCell className="text-muted-foreground max-md:hidden">{t(STATUS_LABEL[p.status])}</TableCell>
                     <TableCell className="max-md:hidden">
                       <span className="inline-flex items-center gap-1.5 text-xs">
                         <PersonAvatar person={lead} size="xs" />
-                        <span className={cn(!lead && "text-muted-foreground")}>{lead?.name ?? "No lead"}</span>
+                        <span className={cn(!lead && "text-muted-foreground")}>{lead?.name ?? t("No lead")}</span>
                       </span>
                     </TableCell>
                     <TableCell className={cn("tabular-nums max-sm:hidden", late ? "text-[var(--viz-critical)]" : "text-muted-foreground")}>
-                      {p.targetDate ? `${fmtShort(p.targetDate)}${days !== null && p.status === "active" ? ` · ${days < 0 ? `${-days} d late` : `${days} d`}` : ""}` : "–"}
+                      {p.targetDate
+                        ? `${fmtShort(p.targetDate)}${days !== null && p.status === "active" ? ` · ${days < 0 ? t("{n} d late", { n: -days }) : t("{n} d", { n: days })}` : ""}`
+                        : "–"}
                     </TableCell>
                     <TableCell className="text-end tabular-nums">{open}</TableCell>
                     <TableCell>
@@ -173,7 +178,7 @@ export function ProjectsList() {
                           {progress.done}/{progress.total}
                         </span>
                         <span className="truncate text-muted-foreground max-lg:hidden" dir="auto">
-                          {milestone ? milestone.title : "all issues"}
+                          {milestone ? milestone.title : t("all issues")}
                         </span>
                       </div>
                     </TableCell>

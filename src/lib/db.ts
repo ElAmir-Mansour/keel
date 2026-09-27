@@ -9,6 +9,7 @@ import type {
   IssueEvent,
   Milestone,
   Note,
+  NoteVersion,
   Person,
   Project,
   Risk,
@@ -37,6 +38,7 @@ export class KeelDB extends Dexie {
   codeLinks!: EntityTable<CodeLink, "id">;
   cycles!: EntityTable<Cycle, "id">;
   views!: EntityTable<SavedView, "id">;
+  noteVersions!: EntityTable<NoteVersion, "id">;
 
   constructor(name = "keel") {
     super(name);
@@ -82,6 +84,10 @@ export class KeelDB extends Dexie {
       cycles: "id, projectId, number, status, startDate, updatedAt",
       views: "id, projectId, updatedAt",
     });
+    // v6: note version history.
+    this.version(6).stores({
+      noteVersions: "id, noteId, savedAt",
+    });
   }
 }
 
@@ -103,6 +109,7 @@ export const TABLE_NAMES = [
   "codeLinks",
   "cycles",
   "views",
+  "noteVersions",
 ] as const;
 
 /** Tables that take part in sync and backups (settings and tombstones are device-local). */
@@ -118,5 +125,6 @@ export const SYNCED_TABLES = [
   "updates",
   "cycles",
   "views",
+  "noteVersions",
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];

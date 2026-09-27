@@ -10,6 +10,7 @@ import { bootDigest, maybeRunDigest } from "@/lib/ai/digest";
 import { bootSemantic } from "@/lib/ai/semantic";
 import { bootGithub } from "@/lib/github/service";
 import { rolloverAll } from "@/lib/cycles";
+import { bootPwa } from "@/lib/pwa";
 
 /** Starts the background services once per page load and nudges about data safety. */
 export function ServicesBoot() {
@@ -23,6 +24,7 @@ export function ServicesBoot() {
     bootDigest();
     bootSemantic();
     bootGithub();
+    bootPwa();
     void rolloverAll().then((moved) => {
       if (moved) toast(`${moved} unfinished issue${moved === 1 ? "" : "s"} rolled into the new cycle`);
     });

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePeople, useProject } from "@/hooks/use-data";
+import { useT } from "@/lib/i18n";
 import { createIssue, transitionIssue, updateIssue } from "@/lib/repo";
 import { BOARD_STATUSES, type Issue, type IssueStatus } from "@/lib/types";
 import { useUi } from "@/lib/ui-store";
@@ -39,6 +40,7 @@ function findContainer(id: string, cols: Cols): IssueStatus | undefined {
 }
 
 export function BoardView() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { openQuickCreate } = useUi();
@@ -158,7 +160,7 @@ export function BoardView() {
         else if (issue.order !== idx) writes.push(updateIssue(iid, { order: idx }));
       });
     }
-    if (writes.length) await safeWrite(() => Promise.all(writes), "Could not move issue");
+    if (writes.length) await safeWrite(() => Promise.all(writes), t("Could not move issue"));
   }
 
   function openIssue(issue: Issue) {
@@ -177,22 +179,22 @@ export function BoardView() {
             <TooltipTrigger asChild>
               <Button type="button" variant={filters.done ? "secondary" : "ghost"} size="sm" aria-pressed={filters.done} className="h-7 text-xs font-normal" onClick={() => set({ done: !filters.done })}>
                 <CheckCircle2 className="size-3.5" />
-                {filters.done ? "Recent done only" : "All done"}
+                {filters.done ? t("Recent done only") : t("All done")}
                 {!filters.done && hiddenDone ? <span className="tabular text-muted-foreground">{hiddenDone}</span> : null}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>The Done column shows the last {DONE_WINDOW_DAYS} days by default</TooltipContent>
+            <TooltipContent>{t("The Done column shows the last {n} days by default", { n: DONE_WINDOW_DAYS })}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button asChild variant="ghost" size="icon-sm" aria-label="List">
+              <Button asChild variant="ghost" size="icon-sm" aria-label={t("List")}>
                 <Link href={`/projects/${id}/issues`}><List /></Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>List</TooltipContent>
+            <TooltipContent>{t("List")}</TooltipContent>
           </Tooltip>
           <Button type="button" size="sm" className="ms-1 h-7" onClick={() => openQuickCreate("issue", id)}>
-            <Plus /> New issue <Kbd className="ms-1 bg-primary-foreground/20 text-primary-foreground">C</Kbd>
+            <Plus /> {t("New issue")} <Kbd className="ms-1 bg-primary-foreground/20 text-primary-foreground">C</Kbd>
           </Button>
         </div>
       </div>
@@ -201,9 +203,9 @@ export function BoardView() {
         <Link href="/inbox" className="mb-3 flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-xs hover:bg-muted">
           <Inbox className="size-3.5 text-muted-foreground" />
           <span>
-            <span className="font-medium">{triageCount}</span> {triageCount === 1 ? "issue" : "issues"} in triage
+            <span className="font-medium">{triageCount}</span> {t(triageCount === 1 ? "issue in triage" : "issues in triage")}
           </span>
-          <span className="ms-auto text-muted-foreground">Open inbox →</span>
+          <span className="ms-auto text-muted-foreground">{t("Open inbox →")}</span>
         </Link>
       ) : null}
 
@@ -218,7 +220,7 @@ export function BoardView() {
                 project={project}
                 personById={personById}
                 onOpen={openIssue}
-                onAdd={(title) => safeWrite(() => createIssue({ projectId: id, title, status }), "Could not create issue")}
+                onAdd={(title) => safeWrite(() => createIssue({ projectId: id, title, status }), t("Could not create issue"))}
               />
             ))}
           </div>
@@ -227,8 +229,10 @@ export function BoardView() {
       </DndContext>
 
       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>Drag to move · <Kbd>Space</Kbd> lifts a focused card, arrows move it, <Kbd>Space</Kbd> drops</span>
-        <span className="inline-flex items-center gap-1"><Kbd>↵</Kbd> open</span>
+        <span>
+          {t("Drag to move")} · <Kbd>Space</Kbd> {t("lifts a focused card, arrows move it,")} <Kbd>Space</Kbd> {t("drops")}
+        </span>
+        <span className="inline-flex items-center gap-1"><Kbd>↵</Kbd> {t("open")}</span>
       </p>
     </div>
   );

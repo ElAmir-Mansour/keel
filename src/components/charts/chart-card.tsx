@@ -8,6 +8,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useT } from "@/lib/i18n";
 
 // Shared chrome for every chart: a card with title and one-line subtitle, a
 // toggle that swaps the plot for its table twin (so no value is reachable only
@@ -36,7 +37,7 @@ export function ChartCard({
   rows,
   loading,
   empty,
-  emptyText = "Nothing in this range yet.",
+  emptyText,
   height = 240,
   action,
   className,
@@ -55,6 +56,7 @@ export function ChartCard({
   className?: string;
   children: ReactNode;
 }) {
+  const t = useT();
   const [table, setTable] = useState(false);
   return (
     <Card size="sm" className={cn("min-w-0", className)}>
@@ -69,13 +71,13 @@ export function ChartCard({
                 variant="ghost"
                 size="icon-xs"
                 aria-pressed={table}
-                aria-label={table ? "Show chart" : "Show table"}
+                aria-label={table ? t("Show chart") : t("Show table")}
                 onClick={() => setTable((v) => !v)}
               >
                 {table ? <ChartColumn className="size-3.5" /> : <Table2 className="size-3.5" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{table ? "Show chart" : "Show as table"}</TooltipContent>
+            <TooltipContent>{table ? t("Show chart") : t("Show as table")}</TooltipContent>
           </Tooltip>
         </CardAction>
       </CardHeader>
@@ -88,7 +90,7 @@ export function ChartCard({
           </div>
         ) : empty ? (
           <div style={{ height }} className="flex items-center justify-center text-xs text-muted-foreground">
-            {emptyText}
+            {emptyText ?? t("Nothing in this range yet.")}
           </div>
         ) : (
           children
@@ -99,6 +101,7 @@ export function ChartCard({
 }
 
 export function DataTable({ columns, rows }: { columns: TableColumn[]; rows: TableRowData[] }) {
+  const t = useT();
   return (
     <Table className="text-xs">
       <TableHeader>
@@ -114,7 +117,7 @@ export function DataTable({ columns, rows }: { columns: TableColumn[]; rows: Tab
         {rows.length === 0 ? (
           <TableRow>
             <TableCell colSpan={columns.length} className="text-muted-foreground">
-              No rows
+              {t("No rows")}
             </TableCell>
           </TableRow>
         ) : (

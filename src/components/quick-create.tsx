@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -48,6 +49,7 @@ function useSubmitOnEnter(submit: () => void) {
 
 function IssueForm({ projectId: initial }: { projectId?: string }) {
   const { closeQuickCreate } = useUi();
+  const t = useT();
   const router = useRouter();
   const projects = useActiveProjects();
   const people = usePeople();
@@ -68,12 +70,12 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
     try {
       if (multi) {
         const created = await createIssuesFromLines(projectId, title);
-        toast.success(`Created ${created.length} issues`);
+        toast.success(t("Created {n} issues", { n: created.length }));
         closeQuickCreate();
       } else {
         const issue = await createIssue({ projectId, title, description, status, priority, assigneeId: assigneeId || undefined, dueDate: dueDate || undefined });
         const p = projects.find((x) => x.id === projectId);
-        toast.success(`Created ${p?.key}-${issue.seq}`, { action: { label: "Open", onClick: () => router.push(`/projects/${projectId}/issues/${issue.seq}`) } });
+        toast.success(t("Created {key}", { key: `${p?.key}-${issue.seq}` }), { action: { label: t("Open issue"), onClick: () => router.push(`/projects/${projectId}/issues/${issue.seq}`) } });
         closeQuickCreate();
       }
     } finally {
@@ -86,8 +88,8 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
     return (
       <>
         <DialogHeader>
-          <DialogTitle>New issue</DialogTitle>
-          <DialogDescription>Create a project first — issues live inside projects.</DialogDescription>
+          <DialogTitle>{t("New issue")}</DialogTitle>
+          <DialogDescription>{t("Create a project first — issues live inside projects.")}</DialogDescription>
         </DialogHeader>
       </>
     );
@@ -96,13 +98,13 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>New issue</DialogTitle>
-        <DialogDescription>Write the issue, not a user story. One line is enough.</DialogDescription>
+        <DialogTitle>{t("New issue")}</DialogTitle>
+        <DialogDescription>{t("Write the issue, not a user story. One line is enough.")}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3" onKeyDown={onKey}>
         <div className="flex flex-wrap gap-2">
           <Select value={projectId} onValueChange={setProjectId}>
-            <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder="Project" /></SelectTrigger>
+            <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder={t("Project")} /></SelectTrigger>
             <SelectContent>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}><ProjectDot project={p} /> {p.name}</SelectItem>
@@ -113,7 +115,7 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
             <SelectTrigger size="sm" className="w-auto"><SelectValue /></SelectTrigger>
             <SelectContent>
               {ISSUE_STATUSES.filter((s) => s.value !== "cancelled").map((s) => (
-                <SelectItem key={s.value} value={s.value}><StatusIcon status={s.value} /> {s.label}</SelectItem>
+                <SelectItem key={s.value} value={s.value}><StatusIcon status={s.value} /> {t(s.label)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -121,14 +123,14 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
             <SelectTrigger size="sm" className="w-auto"><SelectValue /></SelectTrigger>
             <SelectContent>
               {PRIORITIES.map((p) => (
-                <SelectItem key={p.value} value={p.value}><PriorityIcon priority={p.value} /> {p.label}</SelectItem>
+                <SelectItem key={p.value} value={p.value}><PriorityIcon priority={p.value} /> {t(p.label)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={assigneeId || "__none"} onValueChange={(v) => setAssigneeId(v === "__none" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-auto"><SelectValue placeholder="Assignee" /></SelectTrigger>
+            <SelectTrigger size="sm" className="w-auto"><SelectValue placeholder={t("Assignee")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none">Unassigned</SelectItem>
+              <SelectItem value="__none">{t("Unassigned")}</SelectItem>
               {people.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
@@ -136,24 +138,24 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
           </Select>
         </div>
         {multi ? (
-          <Textarea autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={"One issue per line\n- Fix login redirect\n- Add audit log index"} rows={6} dir="auto" />
+          <Textarea autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("One issue per line\n- Fix login redirect\n- Add audit log index")} rows={6} dir="auto" />
         ) : (
-          <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Issue title" dir="auto" />
+          <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Issue title")} dir="auto" />
         )}
-        {!multi ? <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional, markdown)" rows={3} dir="auto" /> : null}
+        {!multi ? <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("Description (optional, markdown)")} rows={3} dir="auto" /> : null}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <Label htmlFor="due" className="text-xs text-muted-foreground">Due</Label>
+            <Label htmlFor="due" className="text-xs text-muted-foreground">{t("Due")}</Label>
             <Input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-8 w-auto" />
           </div>
           <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setMulti((m) => !m)}>
-            {multi ? "Single issue" : "Paste a list → many issues"}
+            {multi ? t("Single issue") : t("Paste a list → many issues")}
           </button>
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={closeQuickCreate}>Cancel</Button>
-        <Button onClick={submit} disabled={!title.trim() || busy}>Create</Button>
+        <Button variant="ghost" onClick={closeQuickCreate}>{t("Cancel")}</Button>
+        <Button onClick={submit} disabled={!title.trim() || busy}>{t("Create")}</Button>
       </DialogFooter>
     </>
   );
@@ -161,6 +163,7 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
 
 function NoteForm({ projectId: initial }: { projectId?: string }) {
   const { closeQuickCreate } = useUi();
+  const t = useT();
   const router = useRouter();
   const projects = useActiveProjects();
   const people = usePeople();
@@ -179,24 +182,24 @@ function NoteForm({ projectId: initial }: { projectId?: string }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>New note</DialogTitle>
-        <DialogDescription>Pick a kind to start from its template. Everything is markdown.</DialogDescription>
+        <DialogTitle>{t("New note")}</DialogTitle>
+        <DialogDescription>{t("Pick a kind to start from its template. Everything is markdown.")}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3" onKeyDown={onKey}>
-        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" dir="auto" />
+        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Title")} dir="auto" />
         <div className="flex flex-wrap gap-2">
           <Select value={kind} onValueChange={(v) => setKind(v as NoteKind)}>
             <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
               {NOTE_KINDS.map((k) => (
-                <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>
+                <SelectItem key={k.value} value={k.value}>{t(k.label)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={projectId || "__none"} onValueChange={(v) => setProjectId(v === "__none" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder="Project" /></SelectTrigger>
+            <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder={t("Project")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none">No project</SelectItem>
+              <SelectItem value="__none">{t("No project")}</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}><ProjectDot project={p} /> {p.name}</SelectItem>
               ))}
@@ -204,9 +207,9 @@ function NoteForm({ projectId: initial }: { projectId?: string }) {
           </Select>
           {kind === "oneonone" ? (
             <Select value={personId || "__none"} onValueChange={(v) => setPersonId(v === "__none" ? "" : v)}>
-              <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder="With" /></SelectTrigger>
+              <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder={t("With")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none">Nobody</SelectItem>
+                <SelectItem value="__none">{t("Nobody")}</SelectItem>
                 {people.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -216,8 +219,8 @@ function NoteForm({ projectId: initial }: { projectId?: string }) {
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={closeQuickCreate}>Cancel</Button>
-        <Button onClick={submit}>Create</Button>
+        <Button variant="ghost" onClick={closeQuickCreate}>{t("Cancel")}</Button>
+        <Button onClick={submit}>{t("Create")}</Button>
       </DialogFooter>
     </>
   );
@@ -225,6 +228,7 @@ function NoteForm({ projectId: initial }: { projectId?: string }) {
 
 function DecisionForm({ projectId: initial }: { projectId?: string }) {
   const { closeQuickCreate } = useUi();
+  const t = useT();
   const router = useRouter();
   const projects = useActiveProjects();
   const [title, setTitle] = useState("");
@@ -239,15 +243,15 @@ function DecisionForm({ projectId: initial }: { projectId?: string }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>New decision</DialogTitle>
-        <DialogDescription>A short ADR: context, decision, consequences. You fill those in next.</DialogDescription>
+        <DialogTitle>{t("New decision")}</DialogTitle>
+        <DialogDescription>{t("A short ADR: context, decision, consequences. You fill those in next.")}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3" onKeyDown={onKey}>
-        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What was decided?" dir="auto" />
+        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("What was decided?")} dir="auto" />
         <Select value={projectId || "__none"} onValueChange={(v) => setProjectId(v === "__none" ? "" : v)}>
-          <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder="Project" /></SelectTrigger>
+          <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder={t("Project")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none">No project</SelectItem>
+            <SelectItem value="__none">{t("No project")}</SelectItem>
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}><ProjectDot project={p} /> {p.name}</SelectItem>
             ))}
@@ -255,8 +259,8 @@ function DecisionForm({ projectId: initial }: { projectId?: string }) {
         </Select>
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={closeQuickCreate}>Cancel</Button>
-        <Button onClick={submit} disabled={!title.trim()}>Create</Button>
+        <Button variant="ghost" onClick={closeQuickCreate}>{t("Cancel")}</Button>
+        <Button onClick={submit} disabled={!title.trim()}>{t("Create")}</Button>
       </DialogFooter>
     </>
   );
@@ -264,6 +268,7 @@ function DecisionForm({ projectId: initial }: { projectId?: string }) {
 
 function RiskForm({ projectId: initial }: { projectId?: string }) {
   const { closeQuickCreate } = useUi();
+  const t = useT();
   const router = useRouter();
   const projects = useActiveProjects();
   const [title, setTitle] = useState("");
@@ -275,7 +280,7 @@ function RiskForm({ projectId: initial }: { projectId?: string }) {
   async function submit() {
     if (!title.trim() || !projectId) return;
     await createRisk({ projectId, title, kind, likelihood: likelihood as 1 | 2 | 3 | 4 | 5, impact: impact as 1 | 2 | 3 | 4 | 5 });
-    toast.success("Risk added");
+    toast.success(t("Risk added"));
     closeQuickCreate();
     router.push(`/projects/${projectId}/risks`);
   }
@@ -283,14 +288,14 @@ function RiskForm({ projectId: initial }: { projectId?: string }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>New risk</DialogTitle>
-        <DialogDescription>Risk, assumption, issue or dependency. Score likelihood and impact 1–5.</DialogDescription>
+        <DialogTitle>{t("New risk")}</DialogTitle>
+        <DialogDescription>{t("Risk, assumption, issue or dependency. Score likelihood and impact 1–5.")}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3" onKeyDown={onKey}>
-        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What could go wrong?" dir="auto" />
+        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("What could go wrong?")} dir="auto" />
         <div className="flex flex-wrap gap-2">
           <Select value={projectId} onValueChange={setProjectId}>
-            <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder="Project" /></SelectTrigger>
+            <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder={t("Project")} /></SelectTrigger>
             <SelectContent>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}><ProjectDot project={p} /> {p.name}</SelectItem>
@@ -301,17 +306,17 @@ function RiskForm({ projectId: initial }: { projectId?: string }) {
             <SelectTrigger size="sm" className="w-auto"><SelectValue /></SelectTrigger>
             <SelectContent>
               {RISK_KINDS.map((k) => (
-                <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>
+                <SelectItem key={k.value} value={k.value}>{t(k.label)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <ScoreSelect label="Likelihood" value={likelihood} onChange={setLikelihood} />
-          <ScoreSelect label="Impact" value={impact} onChange={setImpact} />
+          <ScoreSelect label={t("Likelihood")} value={likelihood} onChange={setLikelihood} />
+          <ScoreSelect label={t("Impact")} value={impact} onChange={setImpact} />
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={closeQuickCreate}>Cancel</Button>
-        <Button onClick={submit} disabled={!title.trim() || !projectId}>Create</Button>
+        <Button variant="ghost" onClick={closeQuickCreate}>{t("Cancel")}</Button>
+        <Button onClick={submit} disabled={!title.trim() || !projectId}>{t("Create")}</Button>
       </DialogFooter>
     </>
   );
@@ -332,6 +337,7 @@ export function ScoreSelect({ label, value, onChange }: { label: string; value: 
 
 function ProjectForm() {
   const { closeQuickCreate } = useUi();
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState("");
   const [typedKey, setKey] = useState("");
@@ -344,7 +350,7 @@ function ProjectForm() {
   async function submit() {
     if (!name.trim() || !key.trim()) return;
     const p = await createProject({ name, key, color, description, targetDate: targetDate || undefined });
-    toast.success(`Project ${p.key} created`);
+    toast.success(t("Project {key} created", { key: p.key }));
     closeQuickCreate();
     router.push(`/projects/${p.id}`);
   }
@@ -352,11 +358,11 @@ function ProjectForm() {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>New project</DialogTitle>
-        <DialogDescription>A project groups issues, milestones, risks and weekly updates. The key prefixes issue numbers.</DialogDescription>
+        <DialogTitle>{t("New project")}</DialogTitle>
+        <DialogDescription>{t("A project groups issues, milestones, risks and weekly updates. The key prefixes issue numbers.")}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3" onKeyDown={onKey}>
-        <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" dir="auto" />
+        <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t("Project name")} dir="auto" />
         <div className="flex flex-wrap items-center gap-2">
           <Input
             value={key}
@@ -370,16 +376,16 @@ function ProjectForm() {
           />
           <div className="flex items-center gap-1">
             {PROJECT_COLORS.map((c) => (
-              <button key={c} type="button" aria-label={`Colour ${c}`} onClick={() => setColor(c)} className="size-6 rounded-md border-2" style={{ backgroundColor: c, borderColor: color === c ? "var(--foreground)" : "transparent" }} />
+              <button key={c} type="button" aria-label={t("Colour {c}", { c })} onClick={() => setColor(c)} className="size-6 rounded-md border-2" style={{ backgroundColor: c, borderColor: color === c ? "var(--foreground)" : "transparent" }} />
             ))}
           </div>
-          <Input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="h-8 w-auto" aria-label="Target date" />
+          <Input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="h-8 w-auto" aria-label={t("Target date")} />
         </div>
-        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="One paragraph: what this project is for" rows={3} dir="auto" />
+        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("One paragraph: what this project is for")} rows={3} dir="auto" />
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={closeQuickCreate}>Cancel</Button>
-        <Button onClick={submit} disabled={!name.trim() || !key.trim()}>Create</Button>
+        <Button variant="ghost" onClick={closeQuickCreate}>{t("Cancel")}</Button>
+        <Button onClick={submit} disabled={!name.trim() || !key.trim()}>{t("Create")}</Button>
       </DialogFooter>
     </>
   );
@@ -394,34 +400,35 @@ export function suggestKey(name: string) {
 
 function PersonForm() {
   const { closeQuickCreate } = useUi();
+  const t = useT();
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [color, setColor] = useState(PROJECT_COLORS[0]);
   async function submit() {
     if (!name.trim()) return;
     await createPerson({ name, role, color });
-    toast.success("Person added");
+    toast.success(t("Person added"));
     closeQuickCreate();
   }
   const onKey = useSubmitOnEnter(submit);
   return (
     <>
       <DialogHeader>
-        <DialogTitle>New person</DialogTitle>
-        <DialogDescription>Someone you assign work to or hold 1:1s with.</DialogDescription>
+        <DialogTitle>{t("New person")}</DialogTitle>
+        <DialogDescription>{t("Someone you assign work to or hold 1:1s with.")}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3" onKeyDown={onKey}>
-        <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" dir="auto" />
-        <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Role, e.g. Backend engineer" dir="auto" />
+        <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t("Name")} dir="auto" />
+        <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t("Role, e.g. Backend engineer")} dir="auto" />
         <div className="flex items-center gap-1">
           {PROJECT_COLORS.map((c) => (
-            <button key={c} type="button" aria-label={`Colour ${c}`} onClick={() => setColor(c)} className="size-6 rounded-full border-2" style={{ backgroundColor: c, borderColor: color === c ? "var(--foreground)" : "transparent" }} />
+            <button key={c} type="button" aria-label={t("Colour {c}", { c })} onClick={() => setColor(c)} className="size-6 rounded-full border-2" style={{ backgroundColor: c, borderColor: color === c ? "var(--foreground)" : "transparent" }} />
           ))}
         </div>
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={closeQuickCreate}>Cancel</Button>
-        <Button onClick={submit} disabled={!name.trim()}>Add</Button>
+        <Button variant="ghost" onClick={closeQuickCreate}>{t("Cancel")}</Button>
+        <Button onClick={submit} disabled={!name.trim()}>{t("Add")}</Button>
       </DialogFooter>
     </>
   );

@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useActiveProjects } from "@/hooks/use-data";
 import { db } from "@/lib/db";
 import { ago, fmtDate, nowISO } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { createIssuesFromLines, snoozeIssue, transitionIssue, updateIssue } from "@/lib/repo";
 import { issueKey, type Issue, type IssueStatus, type Project } from "@/lib/types";
 import { useUi } from "@/lib/ui-store";
@@ -31,6 +32,7 @@ function isSnoozed(i: Issue, now: string) {
 }
 
 export function InboxView() {
+  const t = useT();
   const router = useRouter();
   const projects = useActiveProjects();
   const all = useLiveQuery(() => db.issues.where("status").equals("triage").toArray(), [], EMPTY);
@@ -53,22 +55,23 @@ export function InboxView() {
     return p ? issueKey(p, issue) : `#${issue.seq}`;
   }
 
-  function move(issue: Issue, to: IssueStatus, verb: string) {
+  /** `msg` is a translation key with a `{key}` placeholder, e.g. "Accepted {key}". */
+  function move(issue: Issue, to: IssueStatus, msg: string) {
     const key = keyOf(issue);
     void safeWrite(async () => {
       await transitionIssue(issue.id, to);
-      toast.success(`${verb} ${key}`, {
-        action: { label: "Undo", onClick: () => void safeWrite(() => transitionIssue(issue.id, "triage"), "Could not undo") },
+      toast.success(t(msg, { key }), {
+        action: { label: t("Undo"), onClick: () => void safeWrite(() => transitionIssue(issue.id, "triage"), t("Could not undo")) },
       });
-    }, `Could not update ${key}`);
+    }, t("Could not update {key}", { key }));
   }
 
   function snooze(issue: Issue, until: Date) {
     const key = keyOf(issue);
     void safeWrite(async () => {
       await snoozeIssue(issue.id, until);
-      toast.success(`Snoozed ${key} until ${fmtDate(until.toISOString())}`);
-    }, `Could not snooze ${key}`);
+      toast.success(t("Snoozed {key} until {date}", { key, date: fmtDate(until.toISOString()) }));
+    }, t("Could not snooze {key}", { key }));
   }
 
   const nav = useListNav(items.length, {
@@ -76,24 +79,31 @@ export function InboxView() {
     onOpen: (i) => router.push(issueHref(items[i])),
     onKey: (k, i) => {
       const issue = items[i];
-      if (k === "1") move(issue, "backlog", "Accepted");
-      else if (k === "2") move(issue, "in_progress", "Started");
-      else if (k === "3") move(issue, "cancelled", "Declined");
+      if (k === "1") move(issue, "backlog", "Accepted {key}");
+      else if (k === "2") move(issue, "in_progress", "Started {key}");
+      else if (k === "3") move(issue, "cancelled", "Declined {key}");
       else if (k === "h") setSnoozeFor(issue.id);
       else return false;
       return true;
     },
   });
 
+  const hiddenSnoozed = snoozedCount && !showSnoozed ? snoozedCount : 0;
+  const description = items.length
+    ? `${t("{n} to triage", { n: items.length })}${hiddenSnoozed ? ` · ${t("{n} snoozed", { n: hiddenSnoozed })}` : ""}`
+    : hiddenSnoozed
+      ? t("{n} snoozed", { n: hiddenSnoozed })
+      : t("New issues land here first.");
+
   return (
     <div>
       <PageHeader
-        title="Inbox"
-        description={items.length ? `${items.length} to triage${snoozedCount && !showSnoozed ? ` · ${snoozedCount} snoozed` : ""}` : snoozedCount && !showSnoozed ? `${snoozedCount} snoozed` : "New issues land here first."}
+        title={t("Inbox")}
+        description={description}
         actions={
           <Label className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
-            <Switch size="sm" checked={showSnoozed} onCheckedChange={setShowSnoozed} aria-label="Show snoozed" />
-            Show snoozed
+            <Switch size="sm" checked={showSnoozed} onCheckedChange={setShowSnoozed} aria-label={t("Show snoozed")} />
+            {t("Show snoozed")}
           </Label>
         }
       >
@@ -101,7 +111,15 @@ export function InboxView() {
       </PageHeader>
 
       {items.length === 0 ? (
-        <EmptyState icon={<CheckCircle2 className="text-[var(--viz-good)]" />} title="Inbox zero" description={snoozedCount && !showSnoozed ? `Nothing to triage right now. ${snoozedCount} snoozed ${snoozedCount === 1 ? "issue is" : "issues are"} waiting.` : "Nothing to triage. Capture something above, or press C anywhere."} />
+        <EmptyState
+          icon={<CheckCircle2 className="text-[var(--viz-good)]" />}
+          title={t("Inbox zero")}
+          description={
+            hiddenSnoozed
+              ? t(hiddenSnoozed === 1 ? "Nothing to triage right now. {n} snoozed issue is waiting." : "Nothing to triage right now. {n} snoozed issues are waiting.", { n: hiddenSnoozed })
+              : t("Nothing to triage. Capture something above, or press C anywhere.")
+          }
+        />
       ) : (
         <>
           <div data-list-nav className="divide-y overflow-hidden rounded-lg border">
@@ -118,21 +136,21 @@ export function InboxView() {
                 onSelect={() => nav.index !== i && nav.setIndex(i)}
                 onEdit={(v) => setEditingId(v ? issue.id : null)}
                 onSnoozeOpen={(v) => setSnoozeFor(v ? issue.id : null)}
-                onAccept={() => move(issue, "backlog", "Accepted")}
-                onStart={() => move(issue, "in_progress", "Started")}
-                onDecline={() => move(issue, "cancelled", "Declined")}
+                onAccept={() => move(issue, "backlog", "Accepted {key}")}
+                onStart={() => move(issue, "in_progress", "Started {key}")}
+                onDecline={() => move(issue, "cancelled", "Declined {key}")}
                 onSnooze={(until) => snooze(issue, until)}
               />
             ))}
           </div>
           <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><Kbd>J</Kbd><Kbd>K</Kbd> move</span>
-            <span className="inline-flex items-center gap-1"><Kbd>↵</Kbd> open</span>
-            <span className="inline-flex items-center gap-1"><Kbd>1</Kbd> accept</span>
-            <span className="inline-flex items-center gap-1"><Kbd>2</Kbd> start</span>
-            <span className="inline-flex items-center gap-1"><Kbd>3</Kbd> decline</span>
-            <span className="inline-flex items-center gap-1"><Kbd>H</Kbd> snooze</span>
-            <span>Double-click a title to rename</span>
+            <span className="inline-flex items-center gap-1"><Kbd>J</Kbd><Kbd>K</Kbd> {t("move")}</span>
+            <span className="inline-flex items-center gap-1"><Kbd>↵</Kbd> {t("open")}</span>
+            <span className="inline-flex items-center gap-1"><Kbd>1</Kbd> {t("accept")}</span>
+            <span className="inline-flex items-center gap-1"><Kbd>2</Kbd> {t("start")}</span>
+            <span className="inline-flex items-center gap-1"><Kbd>3</Kbd> {t("decline")}</span>
+            <span className="inline-flex items-center gap-1"><Kbd>H</Kbd> {t("snooze")}</span>
+            <span>{t("Double-click a title to rename")}</span>
           </p>
         </>
       )}
@@ -141,6 +159,7 @@ export function InboxView() {
 }
 
 function CaptureBox({ projects }: { projects: Project[] }) {
+  const t = useT();
   const { openQuickCreate } = useUi();
   const [text, setText] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -152,10 +171,10 @@ function CaptureBox({ projects }: { projects: Project[] }) {
     setBusy(true);
     try {
       const created = await createIssuesFromLines(pid, text);
-      toast.success(`Added ${created.length} to triage`);
+      toast.success(t("Added {n} to triage", { n: created.length }));
       setText("");
     } catch (e) {
-      toast.error("Could not add issues", { description: e instanceof Error ? e.message : undefined });
+      toast.error(t("Could not add issues"), { description: e instanceof Error ? e.message : undefined });
     } finally {
       setBusy(false);
     }
@@ -164,9 +183,9 @@ function CaptureBox({ projects }: { projects: Project[] }) {
   if (!projects.length) {
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-        Issues live inside projects. Create one to start capturing.
+        {t("Issues live inside projects. Create one to start capturing.")}
         <Button type="button" variant="outline" size="sm" className="ms-auto" onClick={() => openQuickCreate("project")}>
-          <Plus /> New project
+          <Plus /> {t("New project")}
         </Button>
       </div>
     );
@@ -178,8 +197,8 @@ function CaptureBox({ projects }: { projects: Project[] }) {
         value={text}
         dir="auto"
         rows={2}
-        placeholder="Paste or type; one issue per line"
-        aria-label="Capture issues"
+        placeholder={t("Paste or type; one issue per line")}
+        aria-label={t("Capture issues")}
         className="min-h-0 resize-y"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -191,8 +210,8 @@ function CaptureBox({ projects }: { projects: Project[] }) {
       />
       <div className="flex flex-wrap items-center gap-2">
         <Select value={pid} onValueChange={setProjectId}>
-          <SelectTrigger size="sm" className="w-auto min-w-36" aria-label="Project">
-            <SelectValue placeholder="Project" />
+          <SelectTrigger size="sm" className="w-auto min-w-36" aria-label={t("Project")}>
+            <SelectValue placeholder={t("Project")} />
           </SelectTrigger>
           <SelectContent>
             {projects.map((p) => (
@@ -203,7 +222,7 @@ function CaptureBox({ projects }: { projects: Project[] }) {
           </SelectContent>
         </Select>
         <Button type="button" size="sm" className="ms-auto" onClick={submit} disabled={!text.trim() || !pid || busy}>
-          Add to triage <Kbd className="ms-1 bg-primary-foreground/20 text-primary-foreground">⌘↵</Kbd>
+          {t("Add to triage")} <Kbd className="ms-1 bg-primary-foreground/20 text-primary-foreground">⌘↵</Kbd>
         </Button>
       </div>
     </div>
@@ -241,11 +260,12 @@ function InboxRow({
   onDecline: () => void;
   onSnooze: (until: Date) => void;
 }) {
+  const t = useT();
   const snoozed = isSnoozed(issue, now);
 
   function saveTitle(raw: string) {
-    const t = raw.trim();
-    if (t && t !== issue.title) void safeWrite(() => updateIssue(issue.id, { title: t }));
+    const next = raw.trim();
+    if (next && next !== issue.title) void safeWrite(() => updateIssue(issue.id, { title: next }));
     onEdit(false);
   }
 
@@ -264,7 +284,7 @@ function InboxRow({
           autoFocus
           defaultValue={issue.title}
           dir="auto"
-          aria-label="Title"
+          aria-label={t("Title")}
           className="min-w-0 flex-1 rounded-md bg-background px-1.5 py-0.5 outline-none ring-1 ring-ring"
           onBlur={(e) => saveTitle(e.target.value)}
           onKeyDown={(e) => {
@@ -281,7 +301,7 @@ function InboxRow({
         <button
           type="button"
           dir="auto"
-          title="Double-click to rename"
+          title={t("Double-click to rename")}
           onClick={onSelect}
           onDoubleClick={() => onEdit(true)}
           className="min-w-0 flex-1 truncate rounded-md px-1.5 py-0.5 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -290,7 +310,7 @@ function InboxRow({
         </button>
       )}
       {snoozed ? (
-        <Badge variant="outline" className="hidden h-5 gap-1 font-normal text-muted-foreground sm:inline-flex" title={`Snoozed until ${fmtDate(issue.snoozedUntil, "d MMM yyyy HH:mm")}`}>
+        <Badge variant="outline" className="hidden h-5 gap-1 font-normal text-muted-foreground sm:inline-flex" title={t("Snoozed until {date}", { date: fmtDate(issue.snoozedUntil, "d MMM yyyy HH:mm") })}>
           <Clock /> {fmtDate(issue.snoozedUntil, "d MMM")}
         </Badge>
       ) : null}
@@ -298,12 +318,12 @@ function InboxRow({
         {ago(issue.createdAt)}
       </span>
       <div className={cn("flex shrink-0 items-center gap-0.5 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-data-selected:opacity-100 md:focus-within:opacity-100", snoozeOpen && "md:opacity-100")}>
-        <Action label="Accept" kbd="1" onClick={onAccept}><CircleDashed /></Action>
-        <Action label="Start" kbd="2" onClick={onStart}><CircleDot className="text-[var(--viz-series-4)]" /></Action>
-        <Action label="Decline" kbd="3" onClick={onDecline}><CircleSlash /></Action>
+        <Action label={t("Accept")} kbd="1" onClick={onAccept}><CircleDashed /></Action>
+        <Action label={t("Start")} kbd="2" onClick={onStart}><CircleDot className="text-[var(--viz-series-4)]" /></Action>
+        <Action label={t("Decline")} kbd="3" onClick={onDecline}><CircleSlash /></Action>
         <SnoozeMenu open={snoozeOpen} onOpenChange={onSnoozeOpen} onPick={onSnooze} />
-        <Button asChild variant="ghost" size="icon-xs" aria-label={`Open ${keyLabel}`} className="text-muted-foreground">
-          <Link href={issueHref(issue)}><ArrowUpRight /></Link>
+        <Button asChild variant="ghost" size="icon-xs" aria-label={t("Open {key}", { key: keyLabel })} className="text-muted-foreground">
+          <Link href={issueHref(issue)}><ArrowUpRight className="rtl:-scale-x-100" /></Link>
         </Button>
       </div>
     </div>

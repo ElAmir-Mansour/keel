@@ -1,7 +1,8 @@
 "use client";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Bold, Columns2, Eye, Italic, Link2, List, ListChecks, Pencil, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,8 +33,10 @@ export function MarkdownView({ body, className, onToggleTask }: { body: string; 
     <div className={cn("md", className)} dir="auto">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        // react-markdown drops unknown protocols; wiki: is ours.
+        urlTransform={(url) => (url.startsWith("wiki:") ? url : defaultUrlTransform(url))}
         components={{
-          a: ({ href, children, ...rest }) => {
+          a: ({ href, children, node: _node, ...rest }) => {
             if (href?.startsWith("wiki:")) {
               const target = decodeURIComponent(href.slice(5));
               const r = resolveLink(target, idx);
@@ -115,7 +118,7 @@ type Mode = "edit" | "preview" | "split";
 export function MarkdownEditor({
   value,
   onChange,
-  placeholder = "Write in markdown. Type [[ to link a note, issue or decision.",
+  placeholder,
   className,
   minRows = 14,
   autoFocus,
@@ -137,7 +140,9 @@ export function MarkdownEditor({
   /** Makes task checkboxes in the preview toggleable. */
   onToggleTask?: (index: number, checked: boolean) => void;
 }) {
+  const t = useT();
   const [modeState, setModeState] = useState<Mode>("edit");
+  const placeholderText = placeholder ?? t("Write in markdown. Type [[ to link a note, issue or decision.");
   const mode = modeProp ?? modeState;
   const setMode = (m: Mode) => {
     setModeState(m);
@@ -268,21 +273,21 @@ export function MarkdownEditor({
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-1 border-b px-2 py-1.5">
-      <ToolBtn label="Bold (⌘B)" onClick={() => wrap("**")}><Bold /></ToolBtn>
-      <ToolBtn label="Italic (⌘I)" onClick={() => wrap("_")}><Italic /></ToolBtn>
-      <ToolBtn label="Bullet list" onClick={() => prefixLines("- ")}><List /></ToolBtn>
-      <ToolBtn label="Task list" onClick={() => prefixLines("- [ ] ")}><ListChecks /></ToolBtn>
-      <ToolBtn label="Wikilink" onClick={() => wrap("[[", "]]")}><Link2 /></ToolBtn>
+      <ToolBtn label={t("Bold (⌘B)")} onClick={() => wrap("**")}><Bold /></ToolBtn>
+      <ToolBtn label={t("Italic (⌘I)")} onClick={() => wrap("_")}><Italic /></ToolBtn>
+      <ToolBtn label={t("Bullet list")} onClick={() => prefixLines("- ")}><List /></ToolBtn>
+      <ToolBtn label={t("Task list")} onClick={() => prefixLines("- [ ] ")}><ListChecks /></ToolBtn>
+      <ToolBtn label={t("Wikilink")} onClick={() => wrap("[[", "]]")}><Link2 /></ToolBtn>
       <span className="mx-1 h-4 w-px bg-border" />
       {aiContext ? (
-        <ToolBtn label="Ask AI about this" onClick={() => openAI({ ...aiContext, action: "ask" })}>
+        <ToolBtn label={t("Ask AI about this")} onClick={() => openAI({ ...aiContext, action: "ask" })}>
           <Sparkles />
         </ToolBtn>
       ) : null}
       <div className="ms-auto flex items-center gap-0.5">
-        <ToolBtn label="Edit" active={mode === "edit"} onClick={() => setMode("edit")}><Pencil /></ToolBtn>
-        <ToolBtn label="Split" active={mode === "split"} onClick={() => setMode("split")}><Columns2 /></ToolBtn>
-        <ToolBtn label="Preview" active={mode === "preview"} onClick={() => setMode("preview")}><Eye /></ToolBtn>
+        <ToolBtn label={t("Edit")} active={mode === "edit"} onClick={() => setMode("edit")}><Pencil /></ToolBtn>
+        <ToolBtn label={t("Split")} active={mode === "split"} onClick={() => setMode("split")}><Columns2 /></ToolBtn>
+        <ToolBtn label={t("Preview")} active={mode === "preview"} onClick={() => setMode("preview")}><Eye /></ToolBtn>
       </div>
     </div>
   );
@@ -295,7 +300,7 @@ export function MarkdownEditor({
         autoFocus={autoFocus}
         dir="auto"
         spellCheck
-        placeholder={placeholder}
+        placeholder={placeholderText}
         onChange={(e) => {
           onChange(e.target.value);
           updateSuggest(e.target, e.target.value);
@@ -307,7 +312,7 @@ export function MarkdownEditor({
       />
       {suggest && suggest.items.length ? (
         <div className="absolute start-4 bottom-2 z-20 w-80 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
-          <div className="border-b px-2 py-1 text-[11px] text-muted-foreground">Link to… ↑↓ then Enter</div>
+          <div className="border-b px-2 py-1 text-[11px] text-muted-foreground">{t("Link to… ↑↓ then Enter")}</div>
           <ul className="max-h-56 overflow-auto py-1">
             {suggest.items.map((it, i) => (
               <li key={it.label + i}>
@@ -332,7 +337,7 @@ export function MarkdownEditor({
 
   const preview = (
     <div className="px-4 py-3">
-      {value.trim() ? <MarkdownView body={value} onToggleTask={onToggleTask} /> : <p className="text-sm text-muted-foreground">Nothing to preview yet.</p>}
+      {value.trim() ? <MarkdownView body={value} onToggleTask={onToggleTask} /> : <p className="text-sm text-muted-foreground">{t("Nothing to preview yet.")}</p>}
     </div>
   );
 

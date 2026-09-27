@@ -8,6 +8,7 @@ import { EmptyState, PageHeader } from "@/components/ui-bits";
 import { useProjects } from "@/hooks/use-data";
 import { db } from "@/lib/db";
 import { todayYMD } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { getOrCreateDailyNote } from "@/lib/repo";
 import { useUi } from "@/lib/ui-store";
 import { NoteList } from "./note-list";
@@ -20,6 +21,7 @@ const KEYS = ["folder", "tag", "q", "kind", "sort"] as const;
 export function NotesBrowser() {
   const router = useRouter();
   const { openQuickCreate } = useUi();
+  const t = useT();
   const notes = useLiveQuery(() => db.notes.toArray(), [], null);
   const projects = useProjects();
   const [f, setF] = useUrlFilters(KEYS);
@@ -32,10 +34,10 @@ export function NotesBrowser() {
   const actions = (
     <>
       <Button variant="outline" size="sm" onClick={openToday}>
-        <CalendarDays /> Today
+        <CalendarDays /> {t("Today")}
       </Button>
       <Button size="sm" onClick={() => openQuickCreate("note")}>
-        <Plus /> New note
+        <Plus /> {t("New note")}
       </Button>
     </>
   );
@@ -43,18 +45,18 @@ export function NotesBrowser() {
   if (notes && notes.length === 0) {
     return (
       <>
-        <PageHeader title="Notes" description="Your vault. Markdown notes that link to each other, to issues and to decisions." actions={actions} />
+        <PageHeader title={t("Notes")} description={t("Your vault. Markdown notes that link to each other, to issues and to decisions.")} actions={actions} />
         <EmptyState
           icon={<FileText />}
-          title="An empty vault"
-          description="Write in markdown. Type [[ to link another note, an issue like PLAT-12, or a decision like ADR-3 — links resolve as you type, and every note lists what links back to it. Press T for today's daily note; it is created the first time you open it."
+          title={t("An empty vault")}
+          description={t("Write in markdown. Type [[ to link another note, an issue like PLAT-12, or a decision like ADR-3 — links resolve as you type, and every note lists what links back to it. Press T for today's daily note; it is created the first time you open it.")}
         >
           <div className="flex flex-wrap justify-center gap-2">
             <Button size="sm" onClick={openToday}>
-              <CalendarDays /> Open today&apos;s note
+              <CalendarDays /> {t("Open today's note")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => openQuickCreate("note")}>
-              <Plus /> New note
+              <Plus /> {t("New note")}
             </Button>
           </div>
         </EmptyState>
@@ -66,7 +68,7 @@ export function NotesBrowser() {
 
   return (
     <>
-      <PageHeader title="Notes" description="Your vault. Markdown notes that link to each other, to issues and to decisions." actions={actions} />
+      <PageHeader title={t("Notes")} description={t("Your vault. Markdown notes that link to each other, to issues and to decisions.")} actions={actions} />
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="thin-scroll lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:self-start lg:overflow-y-auto">
           <VaultRail notes={notes ?? []} folder={f.folder} tag={f.tag} onFolder={(folder) => setF({ folder })} onTag={(tag) => setF({ tag })} />
@@ -74,14 +76,14 @@ export function NotesBrowser() {
         <div className="min-w-0 space-y-3">
           {activeFilters.length ? (
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-              Showing
+              {t("Showing")}
               {activeFilters.map((a) => (
                 <button
                   key={a.key}
                   type="button"
                   onClick={() => setF({ [a.key]: "" })}
                   className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-foreground hover:bg-muted"
-                  aria-label={`Clear ${a.key} filter`}
+                  aria-label={a.key === "folder" ? t("Clear folder filter") : t("Clear tag filter")}
                   dir="auto"
                 >
                   {a.label}
@@ -98,9 +100,9 @@ export function NotesBrowser() {
             loading={notes === null}
             emptyState={
               <p className="py-10 text-center text-sm text-muted-foreground">
-                No notes match.{" "}
+                {t("No notes match.")}{" "}
                 <button type="button" className="underline underline-offset-2" onClick={() => setF({ folder: "", tag: "", q: "", kind: "" })}>
-                  Clear filters
+                  {t("Clear filters")}
                 </button>
               </p>
             }

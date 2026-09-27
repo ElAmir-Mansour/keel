@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n";
 import type { Issue, IssueStatus, Person, Project } from "@/lib/types";
 import { StatusIcon, statusLabel } from "@/components/ui-bits";
 import { BoardCard } from "./board-card";
@@ -27,6 +28,7 @@ export function BoardColumn({
   onAdd: (title: string) => Promise<void>;
   footer?: React.ReactNode;
 }) {
+  const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: status, data: { container: true, status } });
   const ids = issues.map((i) => i.id);
   return (
@@ -48,7 +50,7 @@ export function BoardColumn({
             <BoardCard key={issue.id} issue={issue} project={project} assignee={personById.get(issue.assigneeId ?? "")} onOpen={onOpen} />
           ))}
           {issues.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center rounded-md border border-dashed py-6 text-xs text-muted-foreground">Drop here</div>
+            <div className="flex flex-1 items-center justify-center rounded-md border border-dashed py-6 text-xs text-muted-foreground">{t("Drop here")}</div>
           ) : null}
         </div>
       </SortableContext>
@@ -59,16 +61,17 @@ export function BoardColumn({
 }
 
 function AddCard({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    const t = title.trim();
-    if (!t || busy) return;
+    const next = title.trim();
+    if (!next || busy) return;
     setBusy(true);
     try {
-      await onAdd(t);
+      await onAdd(next);
       setTitle("");
     } finally {
       setBusy(false);
@@ -78,7 +81,7 @@ function AddCard({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
   if (!open) {
     return (
       <Button type="button" variant="ghost" size="sm" className="m-1 justify-start text-muted-foreground" onClick={() => setOpen(true)}>
-        <Plus /> Add issue
+        <Plus /> {t("Add issue")}
       </Button>
     );
   }
@@ -88,8 +91,8 @@ function AddCard({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
         autoFocus
         value={title}
         dir="auto"
-        placeholder="Issue title, Enter to add"
-        aria-label="New issue title"
+        placeholder={t("Issue title, Enter to add")}
+        aria-label={t("New issue title")}
         className="h-8 bg-card text-sm"
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {

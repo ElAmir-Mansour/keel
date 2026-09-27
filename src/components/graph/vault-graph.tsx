@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { EmptyState, PageHeader } from "@/components/ui-bits";
 import { useLinkIndex } from "@/hooks/use-data";
 import { CHROME, SERIES } from "@/lib/chart-theme";
+import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui-store";
 import { extractLinks, resolveLink, type LinkIndex } from "@/lib/wikilinks";
 
@@ -87,6 +88,7 @@ function buildGraph(idx: LinkIndex, opts: { issues: boolean; decisions: boolean;
 /** /graph — the vault as a force-directed graph, like Obsidian's. */
 export function VaultGraph() {
   const { openQuickCreate } = useUi();
+  const t = useT();
   const { notes, issues, decisions, projects } = useLinkIndex();
   const [showIssues, setShowIssues] = useState(true);
   const [showDecisions, setShowDecisions] = useState(true);
@@ -105,19 +107,19 @@ export function VaultGraph() {
       <div className="flex items-center gap-2">
         <Switch id="g-issues" size="sm" checked={showIssues} onCheckedChange={setShowIssues} />
         <Label htmlFor="g-issues" className="text-xs">
-          Issues
+          {t("Issues")}
         </Label>
       </div>
       <div className="flex items-center gap-2">
         <Switch id="g-decisions" size="sm" checked={showDecisions} onCheckedChange={setShowDecisions} />
         <Label htmlFor="g-decisions" className="text-xs">
-          Decisions
+          {t("Decisions")}
         </Label>
       </div>
       <div className="flex items-center gap-2">
         <Switch id="g-orphans" size="sm" checked={orphans} onCheckedChange={setOrphans} />
         <Label htmlFor="g-orphans" className="text-xs">
-          Orphans
+          {t("Orphans")}
         </Label>
       </div>
     </div>
@@ -126,10 +128,10 @@ export function VaultGraph() {
   if (notes.length === 0) {
     return (
       <>
-        <PageHeader title="Graph" description="Every note is a node and every [[link]] an edge." />
-        <EmptyState icon={<Waypoints />} title="Nothing to draw yet" description="The graph appears once there are notes that link to each other.">
+        <PageHeader title={t("Graph")} description={t("Every note is a node and every [[link]] an edge.")} />
+        <EmptyState icon={<Waypoints />} title={t("Nothing to draw yet")} description={t("The graph appears once there are notes that link to each other.")}>
           <Button size="sm" onClick={() => openQuickCreate("note")}>
-            New note
+            {t("New note")}
           </Button>
         </EmptyState>
       </>
@@ -139,14 +141,14 @@ export function VaultGraph() {
   if (graph.links.length === 0 && !orphans) {
     return (
       <>
-        <PageHeader title="Graph" description="Every note is a node and every [[link]] an edge." actions={controls} />
+        <PageHeader title={t("Graph")} description={t("Every note is a node and every [[link]] an edge.")} actions={controls} />
         <EmptyState
           icon={<Waypoints />}
-          title="No links yet"
-          description="Type [[ inside a note to link another note, an issue such as PLAT-12 or a decision such as ADR-3. Each link becomes an edge here, and the more a note is cited the larger it grows."
+          title={t("No links yet")}
+          description={t("Type [[ inside a note to link another note, an issue such as PLAT-12 or a decision such as ADR-3. Each link becomes an edge here, and the more a note is cited the larger it grows.")}
         >
           <Button size="sm" variant="outline" onClick={() => setOrphans(true)}>
-            Show unlinked notes anyway
+            {t("Show unlinked notes anyway")}
           </Button>
         </EmptyState>
       </>
@@ -155,22 +157,22 @@ export function VaultGraph() {
 
   return (
     <>
-      <PageHeader title="Graph" description="Every note is a node and every [[link]] an edge. Drag to move, scroll to zoom, click to open." actions={controls} />
+      <PageHeader title={t("Graph")} description={t("Every note is a node and every [[link]] an edge. Drag to move, scroll to zoom, click to open.")} actions={controls} />
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="relative min-w-48">
           <Search className="pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Highlight…" aria-label="Highlight nodes" dir="auto" className="h-8 ps-8" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Highlight…")} aria-label={t("Highlight nodes")} dir="auto" className="h-8 ps-8" />
         </div>
-        <ul className="flex flex-wrap items-center gap-3 text-xs" aria-label="Legend">
+        <ul className="flex flex-wrap items-center gap-3 text-xs" aria-label={t("Legend")}>
           {LEGEND.map((l) => (
             <li key={l.kind} className="inline-flex items-center gap-1.5">
               <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: COLOR[l.kind] }} aria-hidden />
-              {l.label}
+              {t(l.label)}
             </li>
           ))}
         </ul>
         <span className="text-xs text-muted-foreground tabular">
-          {graph.nodes.length} nodes · {graph.links.length} links
+          {t("{nodes} nodes · {links} links", { nodes: graph.nodes.length, links: graph.links.length })}
         </span>
       </div>
       <GraphCanvas graph={graph} matches={matches} />
@@ -186,6 +188,7 @@ export function VaultGraph() {
  */
 function GraphCanvas({ graph, matches }: { graph: Graph; matches: ReadonlySet<string> | null }) {
   const router = useRouter();
+  const t = useT();
   const [hover, setHover] = useState<string | null>(null);
   const [positions, setPositions] = useState<ReadonlyMap<string, { x: number; y: number }>>(() => new Map());
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
@@ -268,9 +271,9 @@ function GraphCanvas({ graph, matches }: { graph: Graph; matches: ReadonlySet<st
       const rect = el.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-      setTransform((t) => {
-        const k = Math.min(4, Math.max(0.2, t.k * Math.exp(-e.deltaY * 0.0015)));
-        return { k, x: mx - ((mx - t.x) * k) / t.k, y: my - ((my - t.y) * k) / t.k };
+      setTransform((tr) => {
+        const k = Math.min(4, Math.max(0.2, tr.k * Math.exp(-e.deltaY * 0.0015)));
+        return { k, x: mx - ((mx - tr.x) * k) / tr.k, y: my - ((my - tr.y) * k) / tr.k };
       });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -294,7 +297,7 @@ function GraphCanvas({ graph, matches }: { graph: Graph; matches: ReadonlySet<st
     if (!p) return;
     const dx = e.clientX - p.sx;
     const dy = e.clientY - p.sy;
-    setTransform((t) => ({ ...t, x: p.tx + dx, y: p.ty + dy }));
+    setTransform((tr) => ({ ...tr, x: p.tx + dx, y: p.ty + dy }));
   }
   function onBackgroundUp() {
     panRef.current = null;
@@ -343,12 +346,12 @@ function GraphCanvas({ graph, matches }: { graph: Graph; matches: ReadonlySet<st
   const identity = transform.x === 0 && transform.y === 0 && transform.k === 1;
 
   return (
-    <div ref={wrapRef} className="relative h-[70vh] min-h-[420px] overflow-hidden rounded-lg border bg-card">
+    <div ref={wrapRef} className="ltr-island relative h-[70vh] min-h-[420px] overflow-hidden rounded-lg border bg-card">
       <svg
         ref={svgRef}
         className="h-full w-full touch-none select-none"
         role="img"
-        aria-label="Graph of linked notes, issues and decisions"
+        aria-label={t("Graph of linked notes, issues and decisions")}
         onPointerDown={onBackgroundDown}
         onPointerMove={onBackgroundMove}
         onPointerUp={onBackgroundUp}
@@ -400,13 +403,13 @@ function GraphCanvas({ graph, matches }: { graph: Graph; matches: ReadonlySet<st
           <span className="me-1.5 inline-block size-2 rounded-full align-middle" style={{ backgroundColor: COLOR[hovered.kind] }} aria-hidden />
           <span className="font-medium">{hovered.label}</span>
           <span className="ms-2 text-muted-foreground tabular">
-            {hovered.degree} {hovered.degree === 1 ? "link" : "links"}
+            {hovered.degree === 1 ? t("1 link") : t("{n} links", { n: hovered.degree })}
           </span>
         </div>
       ) : null}
       {!identity ? (
         <Button variant="outline" size="sm" className="absolute end-3 top-3" onClick={() => setTransform({ x: 0, y: 0, k: 1 })}>
-          <Maximize /> Reset view
+          <Maximize /> {t("Reset view")}
         </Button>
       ) : null}
     </div>

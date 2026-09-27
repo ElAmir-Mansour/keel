@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsEmptyWorkspace } from "@/hooks/use-data";
 import { daysUntil, todayYMD } from "@/lib/dates";
+import { t, useLang, useT, type Lang } from "@/lib/i18n";
 import { burnUp, cumulativeFlow, cycleTimeHistogram, cycleTimeSummary, isOpen, throughputByWeek, workloadByAssignee } from "@/lib/metrics";
 import { riskScore } from "@/lib/types";
 import { useUi } from "@/lib/ui-store";
@@ -29,32 +30,36 @@ export function Dashboard() {
   const empty = useIsEmptyWorkspace();
   const range = useDateRange();
   const { openQuickCreate } = useUi();
+  const lang = useLang();
+  const t = useT();
   const loading = ws === null;
 
-  const model = useMemo(() => (ws ? buildModel(ws, range) : null), [ws, range]);
+  // The model carries translated labels and locale-sorted names, so the
+  // language is a real input and the memo must recompute when it changes.
+  const model = useMemo(() => (ws ? buildModel(ws, range, lang) : null), [ws, range, lang]);
 
   if (loading || !model) return <DashboardSkeleton range={range} />;
   if (empty) {
     return (
       <>
-        <PageHeader title="Home" description="Projects, health and what needs you this week." />
+        <PageHeader title={t("Home")} description={t("Projects, health and what needs you this week.")} />
         <Onboarding />
       </>
     );
   }
 
   const m = model;
-  const prevLabel = range.range === "q" ? "vs previous quarter" : `vs previous ${range.days} days`;
+  const prevLabel = range.range === "q" ? t("vs previous quarter") : t("vs previous {n} days", { n: range.days });
 
   return (
     <>
       <PageHeader
-        title="Home"
-        description="Projects, health and what needs you this week."
+        title={t("Home")}
+        description={t("Projects, health and what needs you this week.")}
         actions={
           <Button size="sm" onClick={() => openQuickCreate("issue", range.projectId)}>
             <Plus className="size-4" />
-            New issue
+            {t("New issue")}
           </Button>
         }
       >
@@ -63,29 +68,27 @@ export function Dashboard() {
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <StatTile label="Open issues" value={m.open} delta={m.openDelta} deltaLabel="since range start" />
-          <StatTile label="Done in range" value={m.done} delta={m.doneDelta} deltaLabel={prevLabel} upIsGood />
-          <StatTile label="Overdue" value={m.overdue} hint={m.dueThisWeek ? `${m.dueThisWeek} more due this week` : undefined} />
+          <StatTile label={t("Open issues")} value={m.open} delta={m.openDelta} deltaLabel={t("since range start")} />
+          <StatTile label={t("Done in range")} value={m.done} delta={m.doneDelta} deltaLabel={prevLabel} upIsGood />
+          <StatTile label={t("Overdue")} value={m.overdue} hint={m.dueThisWeek ? t("{n} more due this week", { n: m.dueThisWeek }) : undefined} />
           <StatTile
-            label="Open risks"
+            label={t("Open risks")}
             value={m.openRisks}
             hint={
               m.highRisks ? (
-                <span className="font-medium text-[var(--viz-critical)]">
-                  {m.highRisks} scored 12 or higher
-                </span>
+                <span className="font-medium text-[var(--viz-critical)]">{t("{n} scored 12 or higher", { n: m.highRisks })}</span>
               ) : (
-                "None scored 12 or higher"
+                t("None scored 12 or higher")
               )
             }
           />
           <StatTile
-            label="Cycle time p50 / p85 (days)"
+            label={t("Cycle time p50 / p85 (days)")}
             value={m.cycle.n ? `${fmtDays(m.cycle.p50)} / ${fmtDays(m.cycle.p85)}` : "–"}
             delta={m.cycle.n && m.prevCycle.n ? m.cycle.p50 - m.prevCycle.p50 : undefined}
-            deltaLabel={`p50 ${prevLabel}`}
+            deltaLabel={t("p50 {period}", { period: prevLabel })}
             upIsGood={false}
-            hint={m.cycle.n ? `${m.cycle.n} completed` : "No completed issues"}
+            hint={m.cycle.n ? t("{n} completed", { n: m.cycle.n }) : t("No completed issues")}
           />
         </div>
 
@@ -97,15 +100,15 @@ export function Dashboard() {
         </div>
 
         <div className="grid gap-3 lg:grid-cols-2">
-          <ThroughputChart data={m.throughput} subtitle={`Issues completed per week, last ${m.weeks} weeks`} />
+          <ThroughputChart data={m.throughput} subtitle={t("Issues completed per week, last {n} weeks", { n: m.weeks })} />
           <CycleTimeChart data={m.histogram} summary={m.cycle} />
         </div>
 
         <div className="grid gap-3 lg:grid-cols-3">
           <Card size="sm" className="min-w-0">
             <CardHeader>
-              <CardTitle className="text-sm">Milestones</CardTitle>
-              <CardDescription className="text-xs">Progress and due dates for milestones in flight</CardDescription>
+              <CardTitle className="text-sm">{t("Milestones")}</CardTitle>
+              <CardDescription className="text-xs">{t("Progress and due dates for milestones in flight")}</CardDescription>
             </CardHeader>
             <CardContent>
               <MilestoneProgressList milestones={m.activeMilestones} issues={m.issues} projects={m.projects} showProject={!range.projectId} className="-my-2" />
@@ -127,7 +130,7 @@ export function Dashboard() {
 
 type Range = ReturnType<typeof useDateRange>;
 
-function buildModel(all: NonNullable<ReturnType<typeof useWorkspace>>, range: Range) {
+function buildModel(all: NonNullable<ReturnType<typeof useWorkspace>>, range: Range, lang: Lang) {
   const ws = sliceByProject(all, range.projectId);
   const { issues, events, risks, milestones, notes, decisions, people, updates, projects } = ws;
   const today = todayYMD();
@@ -143,7 +146,7 @@ function buildModel(all: NonNullable<ReturnType<typeof useWorkspace>>, range: Ra
   const personName = new Map(people.map((p) => [p.id, p.name]));
   const workload: WorkloadRow[] = [...workloadByAssignee(issues).entries()].map(([id, w]) => ({
     id,
-    name: id === "__unassigned" ? "Unassigned" : (personName.get(id) ?? "Unknown"),
+    name: id === "__unassigned" ? t("Unassigned") : (personName.get(id) ?? t("Unknown")),
     doing: w.doing,
     open: w.open,
   }));
@@ -158,8 +161,8 @@ function buildModel(all: NonNullable<ReturnType<typeof useWorkspace>>, range: Ra
 
   return {
     projects,
-    filterProjects: all.projects.filter((p) => p.status !== "archived").sort((a, b) => a.name.localeCompare(b.name)),
-    cardProjects: projects.filter((p) => p.status === "active" || p.status === "paused").sort((a, b) => a.name.localeCompare(b.name)),
+    filterProjects: all.projects.filter((p) => p.status !== "archived").sort((a, b) => a.name.localeCompare(b.name, lang)),
+    cardProjects: projects.filter((p) => p.status === "active" || p.status === "paused").sort((a, b) => a.name.localeCompare(b.name, lang)),
     projectById: new Map(all.projects.map((p) => [p.id, p])),
     issues,
     milestones,
@@ -192,9 +195,10 @@ function buildModel(all: NonNullable<ReturnType<typeof useWorkspace>>, range: Ra
 }
 
 export function DashboardSkeleton({ range }: { range?: Range }) {
+  const t = useT();
   return (
     <>
-      <PageHeader title="Home" description="Projects, health and what needs you this week.">
+      <PageHeader title={t("Home")} description={t("Projects, health and what needs you this week.")}>
         {range ? <DateRangeRow value={range} /> : null}
       </PageHeader>
       <div className="space-y-4">

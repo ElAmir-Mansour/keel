@@ -16,6 +16,7 @@ import { useProject } from "@/hooks/use-data";
 import { db } from "@/lib/db";
 import { fmtShort, todayYMD } from "@/lib/dates";
 import { cycleLabel, daysLeft, DEFAULT_CYCLE_CONFIG, ensureCycles, isUnfinished } from "@/lib/cycles";
+import { useT } from "@/lib/i18n";
 import { updateIssue, updateProject } from "@/lib/repo";
 import type { Cycle, CycleConfig, Issue } from "@/lib/types";
 
@@ -23,6 +24,7 @@ import type { Cycle, CycleConfig, Issue } from "@/lib/types";
 // list or here; unfinished work rolls forward on the day a cycle ends.
 
 export function CyclesView({ projectId }: { projectId: string }) {
+  const t = useT();
   const project = useProject(projectId);
   const cycles = useLiveQuery(() => db.cycles.where({ projectId }).toArray(), [projectId], [] as Cycle[]);
   const issues = useLiveQuery(() => db.issues.where({ projectId }).toArray(), [projectId], [] as Issue[]);
@@ -42,7 +44,7 @@ export function CyclesView({ projectId }: { projectId: string }) {
     await updateProject(project.id, { cycleConfig: next });
     if (next.enabled) {
       const moved = await ensureCycles({ ...project, cycleConfig: next });
-      if (moved) toast(`${moved} issues rolled forward`);
+      if (moved) toast(t("{n} issues rolled forward", { n: moved }));
     }
   }
 
@@ -54,7 +56,11 @@ export function CyclesView({ projectId }: { projectId: string }) {
       const target = upcoming;
       if (!target) return;
       for (const i of unfinished) await updateIssue(i.id, { cycleId: target.id });
-      toast.success(`Moved ${unfinished.length} unfinished issue${unfinished.length === 1 ? "" : "s"} to ${cycleLabel(target)}`);
+      toast.success(
+        unfinished.length === 1
+          ? t("Moved 1 unfinished issue to {cycle}", { cycle: cycleLabel(target) })
+          : t("Moved {n} unfinished issues to {cycle}", { n: unfinished.length, cycle: cycleLabel(target) }),
+      );
     } finally {
       setBusy(false);
     }
@@ -70,39 +76,43 @@ export function CyclesView({ projectId }: { projectId: string }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm">
         <label className="inline-flex items-center gap-2">
-          <Switch checked={config.enabled} onCheckedChange={(v) => void setConfig({ enabled: v })} /> Cycles
+          <Switch checked={config.enabled} onCheckedChange={(v) => void setConfig({ enabled: v })} /> {t("Cycles")}
         </label>
         <Select value={String(config.lengthWeeks)} onValueChange={(v) => void setConfig({ lengthWeeks: Number(v) as CycleConfig["lengthWeeks"] })}>
-          <SelectTrigger size="sm" className="w-auto" aria-label="Cycle length">
+          <SelectTrigger size="sm" className="w-auto" aria-label={t("Cycle length")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {[1, 2, 3, 4].map((w) => (
               <SelectItem key={w} value={String(w)}>
-                {w} week{w === 1 ? "" : "s"}
+                {w === 1 ? t("1 week") : t("{n} weeks", { n: w })}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">Fixed windows, back to back. Unfinished work rolls into the next cycle automatically; nothing to plan on a Monday morning.</span>
+        <span className="text-xs text-muted-foreground">{t("Fixed windows, back to back. Unfinished work rolls into the next cycle automatically; nothing to plan on a Monday morning.")}</span>
       </div>
 
       {!config.enabled ? (
-        <EmptyState icon={<CalendarRange />} title="Cycles are off for this project" description="Turn them on to plan work in fixed windows. Milestones stay as they are; cycles are the rhythm, milestones are the destination." />
+        <EmptyState
+          icon={<CalendarRange />}
+          title={t("Cycles are off for this project")}
+          description={t("Turn them on to plan work in fixed windows. Milestones stay as they are; cycles are the rhythm, milestones are the destination.")}
+        />
       ) : (
         <>
           {active ? (
             <CycleCard cycle={active} issues={byCycle(active)} headline>
               {upcoming && byCycle(active).some(isUnfinished) ? (
                 <Button size="sm" variant="outline" onClick={rollNow} disabled={busy}>
-                  <ArrowRightToLine /> Move unfinished to {cycleLabel(upcoming)}
+                  <ArrowRightToLine /> {t("Move unfinished to {cycle}", { cycle: cycleLabel(upcoming) })}
                 </Button>
               ) : null}
             </CycleCard>
           ) : null}
           {upcoming ? <CycleCard cycle={upcoming} issues={byCycle(upcoming)} /> : null}
 
-          <Section title={`Not in a cycle · ${unplanned.length}`}>
+          <Section title={t("Not in a cycle · {n}", { n: unplanned.length })}>
             {unplanned.length ? (
               <div className="divide-y rounded-lg border">
                 {unplanned.slice(0, 50).map((i) => (
@@ -124,20 +134,20 @@ export function CyclesView({ projectId }: { projectId: string }) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Every open issue is planned.</p>
+              <p className="text-sm text-muted-foreground">{t("Every open issue is planned.")}</p>
             )}
           </Section>
 
           {past.length ? (
-            <Section title="Past cycles">
+            <Section title={t("Past cycles")}>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cycle</TableHead>
-                    <TableHead>Dates</TableHead>
-                    <TableHead className="text-end">Done</TableHead>
-                    <TableHead className="text-end">Planned</TableHead>
-                    <TableHead>Completion</TableHead>
+                    <TableHead>{t("Cycle")}</TableHead>
+                    <TableHead>{t("Dates")}</TableHead>
+                    <TableHead className="text-end">{t("Done")}</TableHead>
+                    <TableHead className="text-end">{t("Planned")}</TableHead>
+                    <TableHead>{t("Completion")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -169,6 +179,7 @@ export function CyclesView({ projectId }: { projectId: string }) {
 }
 
 function CycleCard({ cycle, issues, headline, children }: { cycle: Cycle; issues: Issue[]; headline?: boolean; children?: React.ReactNode }) {
+  const t = useT();
   const done = issues.filter((i) => i.status === "done").length;
   const live = issues.filter((i) => i.status !== "cancelled");
   const pct = live.length ? Math.round((done / live.length) * 100) : 0;
@@ -177,6 +188,16 @@ function CycleCard({ cycle, issues, headline, children }: { cycle: Cycle; issues
     const order = ["in_review", "in_progress", "todo", "backlog", "done", "cancelled"] as const;
     return order.map((s) => ({ status: s, items: issues.filter((i) => i.status === s) })).filter((g) => g.items.length);
   }, [issues]);
+  const state =
+    cycle.status === "active"
+      ? left >= 0
+        ? left === 1
+          ? t("1 day left")
+          : t("{n} days left", { n: left })
+        : t("ended")
+      : cycle.status === "upcoming"
+        ? t("upcoming")
+        : t("done");
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
@@ -184,12 +205,12 @@ function CycleCard({ cycle, issues, headline, children }: { cycle: Cycle; issues
           <CardTitle className="flex items-center gap-2 text-base">
             {cycleLabel(cycle)}
             <span className="text-xs font-normal text-muted-foreground">
-              {fmtShort(cycle.startDate)} – {fmtShort(cycle.endDate)} · {cycle.status === "active" ? (left >= 0 ? `${left} day${left === 1 ? "" : "s"} left` : "ended") : cycle.status}
+              {fmtShort(cycle.startDate)} – {fmtShort(cycle.endDate)} · {state}
             </span>
           </CardTitle>
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Progress value={pct} className="h-1.5 w-40" />
-            {done}/{live.length} done
+            {t("{done}/{total} done", { done, total: live.length })}
           </div>
         </div>
         <div className="flex items-center gap-2">{children}</div>
@@ -210,13 +231,17 @@ function CycleCard({ cycle, issues, headline, children }: { cycle: Cycle; issues
           ))
         ) : (
           <p className="text-sm text-muted-foreground">
-            {headline ? "Nothing planned yet. Add issues below, or from the issue list with the cycle picker." : "Nothing planned for this cycle yet."}
+            {headline ? t("Nothing planned yet. Add issues below, or from the issue list with the cycle picker.") : t("Nothing planned for this cycle yet.")}
           </p>
         )}
         {headline ? (
           <p className="text-xs text-muted-foreground">
             <RotateCcw className="me-1 inline size-3" />
-            When this cycle ends, anything unfinished moves to the next one on its own. <Link href="?" className="underline underline-offset-2">Learn more in the issue list</Link>.
+            {t("When this cycle ends, anything unfinished moves to the next one on its own.")}{" "}
+            <Link href="?" className="underline underline-offset-2">
+              {t("Learn more in the issue list")}
+            </Link>
+            .
           </p>
         ) : null}
       </CardContent>

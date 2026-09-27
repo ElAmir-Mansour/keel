@@ -197,6 +197,16 @@ export interface Person {
   updatedAt: string;
 }
 
+/** A snapshot of a note's title and body, kept so edits can be undone later. */
+export interface NoteVersion {
+  id: string;
+  noteId: string;
+  title: string;
+  body: string;
+  savedAt: string;
+  updatedAt: string; // same as savedAt; keeps the record syncable by version
+}
+
 /** A pull request or commit that mentions an issue key (GitHub integration). */
 export interface CodeLink {
   id: string; // pr:owner/repo#123 or commit:owner/repo@sha

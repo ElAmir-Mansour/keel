@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 /** Chip editor: type and press Enter (or comma) to add, × or Backspace to remove. */
 export function TagsEditor({
   tags,
   onChange,
-  placeholder = "Add tag",
+  placeholder,
   className,
 }: {
   tags: string[];
@@ -16,22 +17,24 @@ export function TagsEditor({
   className?: string;
 }) {
   const [draft, setDraft] = useState("");
+  const t = useT();
+  const hint = placeholder ?? t("Add tag");
 
   function commit() {
-    const t = draft.trim().replace(/^#/, "").replace(/\s+/g, "-");
-    if (t && !tags.includes(t)) onChange([...tags, t]);
+    const next = draft.trim().replace(/^#/, "").replace(/\s+/g, "-");
+    if (next && !tags.includes(next)) onChange([...tags, next]);
     setDraft("");
   }
 
   return (
     <div className={cn("flex min-h-7 flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent px-1.5 py-0.5 focus-within:border-ring", className)}>
-      {tags.map((t) => (
-        <span key={t} className="inline-flex items-center gap-1 rounded-full bg-secondary ps-2 pe-1 py-0.5 text-xs" dir="auto">
-          #{t}
+      {tags.map((tag) => (
+        <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-secondary ps-2 pe-1 py-0.5 text-xs" dir="auto">
+          #{tag}
           <button
             type="button"
-            aria-label={`Remove tag ${t}`}
-            onClick={() => onChange(tags.filter((x) => x !== t))}
+            aria-label={t("Remove tag {tag}", { tag })}
+            onClick={() => onChange(tags.filter((x) => x !== tag))}
             className="rounded-full p-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
           >
             <X className="size-3" />
@@ -41,8 +44,8 @@ export function TagsEditor({
       <input
         value={draft}
         dir="auto"
-        aria-label={placeholder}
-        placeholder={tags.length ? "" : placeholder}
+        aria-label={hint}
+        placeholder={tags.length ? "" : hint}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === ",") {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { GitCommitHorizontal, GitMerge, GitPullRequest, GitPullRequestClosed, GitPullRequestDraft } from "lucide-react";
 import { db } from "@/lib/db";
 import { fmtShort } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import type { CodeLink } from "@/lib/types";
 import { useGithubStatus } from "@/lib/github/service";
 
@@ -23,22 +24,31 @@ function StateIcon({ state }: { state: CodeLink["state"] }) {
   }
 }
 
+// Whole-line keys per state, so the raw state code is never used as a
+// translation key on its own (where "open" would collide with the verb).
+const STATE_LINE: Record<Exclude<CodeLink["state"], "merged" | "committed">, string> = {
+  open: "open · {date}",
+  draft: "draft · {date}",
+  closed: "closed · {date}",
+};
+
 /** Pull requests and commits that mention this issue's key. */
 export function GithubLinks({ issueId }: { issueId: string }) {
+  const t = useT();
   const gh = useGithubStatus();
   const links = useLiveQuery(() => db.codeLinks.where({ issueId }).toArray(), [issueId], [] as CodeLink[]);
   if (!gh.configured && !links.length) {
     return (
       <p className="text-sm text-muted-foreground">
-        Connect a GitHub repository in{" "}
+        {t("Connect a GitHub repository in")}{" "}
         <Link href="/settings#github" className="underline underline-offset-2">
-          Settings
+          {t("Settings")}
         </Link>{" "}
-        to see pull requests and commits that mention this key.
+        {t("to see pull requests and commits that mention this key.")}
       </p>
     );
   }
-  if (!links.length) return <p className="text-sm text-muted-foreground">No pull requests or commits mention this key yet.</p>;
+  if (!links.length) return <p className="text-sm text-muted-foreground">{t("No pull requests or commits mention this key yet.")}</p>;
   const sorted = [...links].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return (
     <ul className="space-y-1.5 text-sm">
@@ -50,7 +60,11 @@ export function GithubLinks({ issueId }: { issueId: string }) {
             {l.title}
           </a>
           <span className="shrink-0 text-xs text-muted-foreground">
-            {l.state === "merged" ? `merged ${fmtShort(l.mergedAt ?? l.updatedAt)}` : l.state === "committed" ? fmtShort(l.createdAt) : `${l.state} · ${fmtShort(l.updatedAt)}`}
+            {l.state === "merged"
+              ? t("merged {date}", { date: fmtShort(l.mergedAt ?? l.updatedAt) })
+              : l.state === "committed"
+                ? fmtShort(l.createdAt)
+                : t(STATE_LINE[l.state], { date: fmtShort(l.updatedAt) })}
             {l.author ? ` · ${l.author}` : ""}
           </span>
         </li>

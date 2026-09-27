@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { setPaletteOpen, openQuickCreate, openAI } = useUi();
   const projects = useActiveProjects();
   const mounted = useMounted();
+  const t = useT();
 
   // Global keys: ⌘K palette; single keys when not typing; "g" then a letter to navigate.
   useEffect(() => {
@@ -113,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </span>
                   <span className="grid leading-tight">
                     <span className="font-semibold">Keel</span>
-                    <span className="text-xs text-muted-foreground">Tech lead workspace</span>
+                    <span className="text-xs text-muted-foreground">{t("Tech lead workspace")}</span>
                   </span>
                 </Link>
               </SidebarMenuButton>
@@ -126,10 +128,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SidebarMenu>
                 {NAV.filter((n) => n.href !== "/settings" && n.href !== "/projects").map((n) => (
                   <SidebarMenuItem key={n.href}>
-                    <SidebarMenuButton asChild isActive={isActive(n.href)} tooltip={n.label}>
+                    <SidebarMenuButton asChild isActive={isActive(n.href)} tooltip={t(n.label)}>
                       <Link href={n.href}>
                         <n.icon />
-                        <span>{n.label}</span>
+                        <span>{t(n.label)}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -138,17 +140,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SidebarGroupContent>
           </SidebarGroup>
           <SidebarGroup>
-            <SidebarGroupLabel>Projects</SidebarGroupLabel>
+            <SidebarGroupLabel>{t("Projects")}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/projects"} tooltip="All projects">
+                  <SidebarMenuButton asChild isActive={pathname === "/projects"} tooltip={t("All projects")}>
                     <Link href="/projects">
                       {(() => {
                         const Icon = NAV.find((n) => n.href === "/projects")!.icon;
                         return <Icon />;
                       })()}
-                      <span>All projects</span>
+                      <span>{t("All projects")}</span>
                     </Link>
                   </SidebarMenuButton>
                   {mounted && projects.length ? (
@@ -173,13 +175,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/settings")} tooltip="Settings">
+              <SidebarMenuButton asChild isActive={isActive("/settings")} tooltip={t("Settings")}>
                 <Link href="/settings">
                   {(() => {
                     const Icon = NAV.find((n) => n.href === "/settings")!.icon;
                     return <Icon />;
                   })()}
-                  <span>Settings</span>
+                  <span>{t("Settings")}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -192,7 +194,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarTrigger className="-ms-1" />
           <Button variant="outline" size="sm" className="h-8 w-56 justify-start gap-2 text-muted-foreground max-md:w-auto" onClick={() => setPaletteOpen(true)}>
             <Search className="size-3.5" />
-            <span className="max-md:hidden">Search or jump to…</span>
+            <span className="max-md:hidden">{t("Search or jump to…")}</span>
             <Kbd className="ms-auto max-md:hidden">⌘K</Kbd>
           </Button>
           <div className="ms-auto flex items-center gap-1">
@@ -200,28 +202,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button size="sm" className="h-8 gap-1">
                   <Plus className="size-4" />
-                  <span className="max-sm:hidden">New</span>
+                  <span className="max-sm:hidden">{t("New")}</span>
                   <ChevronDown className="size-3 opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onSelect={() => openQuickCreate("issue")}>Issue <Kbd className="ms-auto">C</Kbd></DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => openQuickCreate("note")}>Note <Kbd className="ms-auto">N</Kbd></DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => void getOrCreateDailyNote(todayYMD()).then((n) => router.push(`/notes/${n.id}`))}>Today&apos;s note <Kbd className="ms-auto">T</Kbd></DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openQuickCreate("issue")}>{t("Issue")} <Kbd className="ms-auto">C</Kbd></DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openQuickCreate("note")}>{t("Note")} <Kbd className="ms-auto">N</Kbd></DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void getOrCreateDailyNote(todayYMD()).then((n) => router.push(`/notes/${n.id}`))}>{t("Today's note")} <Kbd className="ms-auto">T</Kbd></DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => openQuickCreate("decision")}>Decision</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => openQuickCreate("risk")}>Risk</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => openQuickCreate("project")}>Project</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => openQuickCreate("person")}>Person</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openQuickCreate("decision")}>{t("Decision")}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openQuickCreate("risk")}>{t("Risk")}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openQuickCreate("project")}>{t("Project")}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openQuickCreate("person")}>{t("Person")}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={() => openAI({ action: "ask" })} aria-label="Ask AI">
+                <Button variant="ghost" size="icon-sm" onClick={() => openAI({ action: "ask" })} aria-label={t("Ask AI")}>
                   <Sparkles className="size-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Ask AI <Kbd className="ms-1">A</Kbd></TooltipContent>
+              <TooltipContent>{t("Ask AI")} <Kbd className="ms-1">A</Kbd></TooltipContent>
             </Tooltip>
             <ThemeToggle />
           </div>
@@ -240,8 +242,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useMounted();
+  const t = useT();
   return (
-    <Button variant="ghost" size="icon-sm" aria-label="Toggle theme" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
+    <Button variant="ghost" size="icon-sm" aria-label={t("Toggle theme")} onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
       {mounted && resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </Button>
   );

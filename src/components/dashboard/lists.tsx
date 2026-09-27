@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ago, daysUntil, fmtShort } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { DECISION_STATUSES, issueKey, type Decision, type Issue, type Note, type Project } from "@/lib/types";
 import { IssueKey, KindBadge, PriorityIcon, ProjectDot, StatusIcon } from "@/components/ui-bits";
 
@@ -51,8 +52,9 @@ export function ListCard({
 }
 
 export function DueSoonList({ issues, projectById, loading }: { issues: Issue[]; projectById: Map<string, Project>; loading?: boolean }) {
+  const t = useT();
   return (
-    <ListCard title="Due soon" subtitle="Overdue and due in the next 7 days" loading={loading} empty={!issues.length} emptyText="Nothing due this week.">
+    <ListCard title={t("Due soon")} subtitle={t("Overdue and due in the next 7 days")} loading={loading} empty={!issues.length} emptyText={t("Nothing due this week.")}>
       {issues.map((i) => {
         const p = projectById.get(i.projectId);
         const d = daysUntil(i.dueDate);
@@ -67,7 +69,7 @@ export function DueSoonList({ issues, projectById, loading }: { issues: Issue[];
                 {i.title}
               </span>
               <span className={cn("shrink-0 tabular-nums", overdue ? "font-medium text-[var(--viz-critical)]" : "text-muted-foreground")}>
-                {d === null ? "" : overdue ? `${-d} d overdue` : d === 0 ? "Today" : d === 1 ? "Tomorrow" : fmtShort(i.dueDate)}
+                {d === null ? "" : overdue ? t("{n} d overdue", { n: -d }) : d === 0 ? t("Today") : d === 1 ? t("Tomorrow") : fmtShort(i.dueDate)}
               </span>
             </Link>
           </li>
@@ -78,8 +80,9 @@ export function DueSoonList({ issues, projectById, loading }: { issues: Issue[];
 }
 
 export function RecentNotesList({ notes, projectById, loading }: { notes: Note[]; projectById: Map<string, Project>; loading?: boolean }) {
+  const t = useT();
   return (
-    <ListCard title="Recent notes" subtitle="Last edited" loading={loading} empty={!notes.length} emptyText="No notes yet. Press N to write one.">
+    <ListCard title={t("Recent notes")} subtitle={t("Last edited")} loading={loading} empty={!notes.length} emptyText={t("No notes yet. Press N to write one.")}>
       {notes.map((n) => {
         const p = n.projectId ? projectById.get(n.projectId) : undefined;
         return (
@@ -100,8 +103,9 @@ export function RecentNotesList({ notes, projectById, loading }: { notes: Note[]
 }
 
 export function RecentDecisionsList({ decisions, projectById, loading }: { decisions: Decision[]; projectById: Map<string, Project>; loading?: boolean }) {
+  const t = useT();
   return (
-    <ListCard title="Recent decisions" subtitle="Latest ADRs" loading={loading} empty={!decisions.length} emptyText="No decisions recorded yet.">
+    <ListCard title={t("Recent decisions")} subtitle={t("Latest ADRs")} loading={loading} empty={!decisions.length} emptyText={t("No decisions recorded yet.")}>
       {decisions.map((d) => {
         const p = d.projectId ? projectById.get(d.projectId) : undefined;
         return (
@@ -112,7 +116,7 @@ export function RecentDecisionsList({ decisions, projectById, loading }: { decis
                 {d.title}
               </span>
               {p ? <ProjectDot project={p} /> : null}
-              <span className="shrink-0 text-muted-foreground">{DECISION_STATUSES.find((s) => s.value === d.status)?.label ?? d.status}</span>
+              <span className="shrink-0 text-muted-foreground">{t(DECISION_STATUSES.find((s) => s.value === d.status)?.label ?? d.status)}</span>
             </Link>
           </li>
         );

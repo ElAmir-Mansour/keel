@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { Download, ExternalLink, Monitor, Moon, Sun, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { setLang, useLang, useT, type Lang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
@@ -15,6 +16,7 @@ import { SyncSettings } from "@/components/settings/sync-settings";
 import { ImportSettings } from "@/components/settings/import-settings";
 import { DigestSettings } from "@/components/settings/digest-settings";
 import { SemanticSettings } from "@/components/settings/semantic-settings";
+import { InstallSettings } from "@/components/settings/install-settings";
 import { GithubSettings } from "@/components/settings/github-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { PageHeader } from "@/components/ui-bits";
@@ -26,10 +28,17 @@ import { seedSample } from "@/lib/seed";
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
 import pkg from "../../../package.json";
 
+// Labels stay English here and are translated at render time with t().
 const THEMES = [
   { value: "system", label: "System", hint: "Follow the OS", Icon: Monitor },
   { value: "light", label: "Light", hint: "Always light", Icon: Sun },
   { value: "dark", label: "Dark", hint: "Always dark", Icon: Moon },
+];
+
+// The language names are shown as-is in their own script, never translated.
+const LANGS: { value: Lang; label: string }[] = [
+  { value: "en", label: "English" },
+  { value: "ar", label: "العربية" },
 ];
 
 const COUNT_LABELS: [string, string][] = [
@@ -77,6 +86,8 @@ function SettingsSection({ id, title, description, children }: { id: string; tit
 
 /** /settings */
 export function SettingsPage() {
+  const t = useT();
+  const lang = useLang();
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
   const counts = useLiveQuery(() => countAll(), [], null);
@@ -90,7 +101,7 @@ export function SettingsPage() {
   async function onExport() {
     const data = await exportAll();
     downloadJSON(data, `keel-export-${todayYMD()}.json`);
-    toast.success("Export downloaded");
+    toast.success(t("Export downloaded"));
   }
 
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -105,7 +116,7 @@ export function SettingsPage() {
       setMode("replace");
       setPending({ name: file.name, data, counts: c });
     } catch {
-      toast.error("Not a Keel export file");
+      toast.error(t("Not a Keel export file"));
     }
   }
 
@@ -114,10 +125,10 @@ export function SettingsPage() {
     setBusy(true);
     try {
       await importAll(pending.data, mode);
-      toast.success(mode === "replace" ? "Workspace replaced from export" : "Export merged into workspace");
+      toast.success(mode === "replace" ? t("Workspace replaced from export") : t("Export merged into workspace"));
       setPending(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      toast.error(err instanceof Error ? err.message : t("Import failed"));
     } finally {
       setBusy(false);
     }
@@ -128,26 +139,34 @@ export function SettingsPage() {
     setBusy(true);
     try {
       await seedSample();
-      toast.success("Sample workspace loaded");
+      toast.success(t("Sample workspace loaded"));
     } finally {
       setBusy(false);
     }
   }
 
+  /** "12 issues, 3 notes" for the import preview, with the table names translated. */
+  function describeCounts(c: Record<string, number>) {
+    return Object.entries(c)
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${n} ${t(COUNT_LABELS.find(([key]) => key === k)?.[1] ?? k)}`)
+      .join(", ");
+  }
+
   return (
     <>
-      <PageHeader title="Settings" description="Appearance, your data, backups, sync, shortcuts and the AI assistant." />
+      <PageHeader title={t("Settings")} description={t("Appearance, your data, backups, sync, shortcuts and the AI assistant.")} />
 
-      <SettingsSection id="appearance" title="Appearance" description="Theme is remembered in this browser.">
+      <SettingsSection id="appearance" title={t("Appearance")} description={t("Theme is remembered in this browser.")}>
         {mounted ? (
-          <div role="radiogroup" aria-label="Theme" className="grid gap-2 sm:grid-cols-3">
-            {THEMES.map((t) => (
-              <label key={t.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm hover:bg-muted/60 has-[:checked]:border-foreground/50 has-[:checked]:bg-accent")}>
-                <input type="radio" name="theme" value={t.value} checked={theme === t.value} onChange={() => setTheme(t.value)} className="sr-only" />
-                <t.Icon className="size-4 text-muted-foreground" />
+          <div role="radiogroup" aria-label={t("Theme")} className="grid gap-2 sm:grid-cols-3">
+            {THEMES.map((th) => (
+              <label key={th.value} className={cn("flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm hover:bg-muted/60 has-[:checked]:border-foreground/50 has-[:checked]:bg-accent")}>
+                <input type="radio" name="theme" value={th.value} checked={theme === th.value} onChange={() => setTheme(th.value)} className="sr-only" />
+                <th.Icon className="size-4 text-muted-foreground" />
                 <span className="grid">
-                  <span className="font-medium">{t.label}</span>
-                  <span className="text-xs text-muted-foreground">{t.hint}</span>
+                  <span className="font-medium">{t(th.label)}</span>
+                  <span className="text-xs text-muted-foreground">{t(th.hint)}</span>
                 </span>
               </label>
             ))}
@@ -155,14 +174,30 @@ export function SettingsPage() {
         ) : (
           <Skeleton className="h-16" />
         )}
+        <div className="space-y-2">
+          <p className="text-xs font-medium">{t("Language")}</p>
+          <div role="radiogroup" aria-label={t("Language")} className="inline-grid grid-cols-2 gap-1 rounded-lg border p-1">
+            {LANGS.map((l) => (
+              <label
+                key={l.value}
+                className="cursor-pointer rounded-md px-4 py-1.5 text-center text-sm hover:bg-muted/60 has-[:checked]:bg-accent has-[:checked]:font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50"
+              >
+                <input type="radio" name="lang" value={l.value} checked={lang === l.value} onChange={() => setLang(l.value)} className="sr-only" />
+                <span lang={l.value} dir={l.value === "ar" ? "rtl" : "ltr"}>
+                  {l.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
       </SettingsSection>
 
-      <SettingsSection id="data" title="Data" description="Everything lives in this browser's IndexedDB. Export regularly; there is no server copy.">
+      <SettingsSection id="data" title={t("Data")} description={t("Everything lives in this browser's IndexedDB. Export regularly; there is no server copy.")}>
         {counts ? (
           <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
             {COUNT_LABELS.map(([k, label]) => (
               <div key={k} className="flex items-baseline justify-between gap-2 border-b py-1">
-                <dt className="text-muted-foreground">{label}</dt>
+                <dt className="text-muted-foreground">{t(label)}</dt>
                 <dd className="font-medium tabular">{counts[k] ?? 0}</dd>
               </div>
             ))}
@@ -172,39 +207,39 @@ export function SettingsPage() {
         )}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => void onExport()}>
-            <Download /> Export JSON
+            <Download /> {t("Export JSON")}
           </Button>
           <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
-            <Upload /> Import JSON
+            <Upload /> {t("Import JSON")}
           </Button>
-          <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void onPickFile(e)} aria-label="Import file" />
+          <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void onPickFile(e)} aria-label={t("Import file")} />
           <Button size="sm" variant="outline" onClick={() => void onSeed()} disabled={!empty || busy}>
-            Load sample data
+            {t("Load sample data")}
           </Button>
           <Button size="sm" variant="destructive" onClick={() => setConfirmClear(true)}>
-            Clear all data
+            {t("Clear all data")}
           </Button>
         </div>
-        {counts && !empty ? <p className="text-xs text-muted-foreground">Sample data can only be loaded into an empty workspace. Export, then clear all data, to try it.</p> : null}
+        {counts && !empty ? <p className="text-xs text-muted-foreground">{t("Sample data can only be loaded into an empty workspace. Export, then clear all data, to try it.")}</p> : null}
       </SettingsSection>
 
-      <SettingsSection id="import" title="Import" description="Bring in an Obsidian vault, or the issues you track in Linear or Jira. You see a preview before anything is written.">
+      <SettingsSection id="import" title={t("Import")} description={t("Bring in an Obsidian vault, or the issues you track in Linear or Jira. You see a preview before anything is written.")}>
         <ImportSettings />
       </SettingsSection>
 
-      <SettingsSection id="backups" title="Automatic backups" description="A JSON copy of everything, written to a folder on a schedule while Keel is open.">
+      <SettingsSection id="backups" title={t("Automatic backups")} description={t("A JSON copy of everything, written to a folder on a schedule while Keel is open.")}>
         <BackupSettings />
       </SettingsSection>
 
-      <SettingsSection id="sync" title="Sync across devices" description="Optional. Your own Supabase project holds an encrypted-in-transit copy; nothing is shared with anyone else.">
+      <SettingsSection id="sync" title={t("Sync across devices")} description={t("Optional. Your own Supabase project holds an encrypted-in-transit copy; nothing is shared with anyone else.")}>
         <SyncSettings />
       </SettingsSection>
 
-      <SettingsSection id="github" title="GitHub" description="Link pull requests and commits to issues, and let a merged PR close the issue.">
+      <SettingsSection id="github" title={t("GitHub")} description={t("Link pull requests and commits to issues, and let a merged PR close the issue.")}>
         <GithubSettings />
       </SettingsSection>
 
-      <SettingsSection id="shortcuts" title="Keyboard shortcuts" description="Single keys work whenever you are not typing in a field.">
+      <SettingsSection id="shortcuts" title={t("Keyboard shortcuts")} description={t("Single keys work whenever you are not typing in a field.")}>
         <div className="overflow-hidden rounded-lg border bg-card">
           <Table>
             <TableBody>
@@ -217,7 +252,7 @@ export function SettingsPage() {
                       ))}
                       {s.then ? (
                         <>
-                          <span className="text-xs text-muted-foreground">then</span>
+                          <span className="text-xs text-muted-foreground">{t("then")}</span>
                           {s.then.map((k) => (
                             <Kbd key={k}>{k}</Kbd>
                           ))}
@@ -225,7 +260,7 @@ export function SettingsPage() {
                       ) : null}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm">{s.what}</TableCell>
+                  <TableCell className="text-sm">{t(s.what)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -233,27 +268,31 @@ export function SettingsPage() {
         </div>
       </SettingsSection>
 
-      <SettingsSection id="ai" title="AI assistant" description="Optional. Nothing is sent anywhere until you ask it something.">
+      <SettingsSection id="ai" title={t("AI assistant")} description={t("Optional. Nothing is sent anywhere until you ask it something.")}>
         <AiSettings />
       </SettingsSection>
 
-      <SettingsSection id="digest" title="Weekly digest" description="A note per week across all active projects, written on the day you choose.">
+      <SettingsSection id="digest" title={t("Weekly digest")} description={t("A note per week across all active projects, written on the day you choose.")}>
         <DigestSettings />
       </SettingsSection>
 
-      <SettingsSection id="semantic" title="Semantic search" description="Optional, on-device. Search and the assistant find notes by meaning.">
+      <SettingsSection id="semantic" title={t("Semantic search")} description={t("Optional, on-device. Search and the assistant find notes by meaning.")}>
         <SemanticSettings />
       </SettingsSection>
 
-      <SettingsSection id="about" title="About">
+      <SettingsSection id="install" title={t("Install as an app")} description={t("Your own window, an icon, and it opens offline.")}>
+        <InstallSettings />
+      </SettingsSection>
+
+      <SettingsSection id="about" title={t("About")}>
         <div className="space-y-2 text-sm">
           <p>
             <span className="font-medium">Keel</span> <span className="font-mono text-xs text-muted-foreground">v{pkg.version}</span>
           </p>
-          <p className="text-muted-foreground">Local-first: your data never leaves this browser unless you export it or use the AI assistant.</p>
+          <p className="text-muted-foreground">{t("Local-first: your data never leaves this browser unless you export it or use the AI assistant.")}</p>
           <p>
             <a href="https://github.com/ElAmir-Mansour/keel" target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 underline underline-offset-4">
-              Source on GitHub <ExternalLink className="size-3" />
+              {t("Source on GitHub")} <ExternalLink className="size-3" />
             </a>
           </p>
         </div>
@@ -262,12 +301,10 @@ export function SettingsPage() {
       <Dialog open={pending !== null} onOpenChange={(v) => !v && setPending(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Import {pending?.name}</DialogTitle>
-            <DialogDescription>
-              {pending ? Object.entries(pending.counts).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(", ") || "An empty export" : null}
-            </DialogDescription>
+            <DialogTitle>{t("Import {name}", { name: pending?.name ?? "" })}</DialogTitle>
+            <DialogDescription>{pending ? describeCounts(pending.counts) || t("An empty export") : null}</DialogDescription>
           </DialogHeader>
-          <div role="radiogroup" aria-label="Import mode" className="grid gap-2">
+          <div role="radiogroup" aria-label={t("Import mode")} className="grid gap-2">
             {(
               [
                 { value: "replace", label: "Replace everything", hint: "Clears the current workspace first. What you have now is gone unless you exported it." },
@@ -277,18 +314,18 @@ export function SettingsPage() {
               <label key={o.value} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm hover:bg-muted/60 has-[:checked]:border-foreground/50 has-[:checked]:bg-accent">
                 <input type="radio" name="import-mode" value={o.value} checked={mode === o.value} onChange={() => setMode(o.value)} className="mt-1" />
                 <span className="grid">
-                  <span className="font-medium">{o.label}</span>
-                  <span className="text-xs text-muted-foreground">{o.hint}</span>
+                  <span className="font-medium">{t(o.label)}</span>
+                  <span className="text-xs text-muted-foreground">{t(o.hint)}</span>
                 </span>
               </label>
             ))}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPending(null)}>
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button variant={mode === "replace" ? "destructive" : "default"} onClick={() => void onImport()} disabled={busy}>
-              {mode === "replace" ? "Replace workspace" : "Merge into workspace"}
+              {mode === "replace" ? t("Replace workspace") : t("Merge into workspace")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -297,14 +334,14 @@ export function SettingsPage() {
       <ConfirmDialog
         open={confirmClear}
         onOpenChange={setConfirmClear}
-        title="Clear all data?"
-        description="Every project, issue, note, decision, risk, person and setting in this browser is deleted. There is no undo; export first if in doubt."
-        confirmLabel="Delete everything"
+        title={t("Clear all data?")}
+        description={t("Every project, issue, note, decision, risk, person and setting in this browser is deleted. There is no undo; export first if in doubt.")}
+        confirmLabel={t("Delete everything")}
         destructive
         typeToConfirm="DELETE"
         onConfirm={async () => {
           await clearAll();
-          toast.success("Workspace cleared");
+          toast.success(t("Workspace cleared"));
         }}
       />
     </>

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/db";
 import { daysUntil, fmtDate } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { isOpen } from "@/lib/metrics";
 import { updateProject } from "@/lib/repo";
 import type { ProjectStatus } from "@/lib/types";
@@ -21,6 +22,7 @@ import { latestUpdates } from "@/components/dashboard/data";
 // Header and tab nav shared by every /projects/[id]/* page. Renders the
 // not-found state itself so child pages can assume the project exists.
 
+// Labels stay English here and are translated at render with t(label).
 const STATUSES: { value: ProjectStatus; label: string }[] = [
   { value: "active", label: "Active" },
   { value: "paused", label: "Paused" },
@@ -43,6 +45,7 @@ export function projectTabs(id: string) {
 }
 
 export function ProjectShell({ id, children }: { id: string; children: ReactNode }) {
+  const t = useT();
   const pathname = usePathname();
   const { openQuickCreate, openAI } = useUi();
   const [expanded, setExpanded] = useState(false);
@@ -67,9 +70,9 @@ export function ProjectShell({ id, children }: { id: string; children: ReactNode
   }
   if (!project) {
     return (
-      <EmptyState icon={<FolderX />} title="Project not found" description="It may have been deleted, or the link is from another workspace.">
+      <EmptyState icon={<FolderX />} title={t("Project not found")} description={t("It may have been deleted, or the link is from another workspace.")}>
         <Button asChild variant="outline">
-          <Link href="/projects">All projects</Link>
+          <Link href="/projects">{t("All projects")}</Link>
         </Button>
       </EmptyState>
     );
@@ -81,7 +84,8 @@ export function ProjectShell({ id, children }: { id: string; children: ReactNode
 
   async function setStatus(v: string) {
     await updateProject(project!.id, { status: v as ProjectStatus });
-    toast.success(`Project marked ${STATUSES.find((s) => s.value === v)?.label.toLowerCase() ?? v}`);
+    const label = STATUSES.find((s) => s.value === v)?.label;
+    toast.success(t("Project marked {status}", { status: label ? t(label).toLowerCase() : v }));
   }
 
   return (
@@ -99,13 +103,13 @@ export function ProjectShell({ id, children }: { id: string; children: ReactNode
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <Select value={project.status} onValueChange={(v) => void setStatus(v)}>
-                <SelectTrigger size="sm" className="h-6 gap-1 border-none bg-transparent px-1 text-xs shadow-none dark:bg-transparent" aria-label="Project status">
+                <SelectTrigger size="sm" className="h-6 gap-1 border-none bg-transparent px-1 text-xs shadow-none dark:bg-transparent" aria-label={t("Project status")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {STATUSES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
-                      {s.label}
+                      {t(s.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -113,11 +117,11 @@ export function ProjectShell({ id, children }: { id: string; children: ReactNode
               {project.targetDate ? (
                 <span className={cn("inline-flex items-center gap-1 tabular-nums", late && "text-[var(--viz-critical)]")}>
                   <CalendarDays className="size-3" aria-hidden />
-                  Target {fmtDate(project.targetDate)}
-                  {days !== null && project.status === "active" ? ` · ${days < 0 ? `${-days} d late` : days === 0 ? "today" : `in ${days} d`}` : ""}
+                  {t("Target {date}", { date: fmtDate(project.targetDate) })}
+                  {days !== null && project.status === "active" ? ` · ${days < 0 ? t("{n} d late", { n: -days }) : days === 0 ? t("today") : t("in {n} d", { n: days })}` : ""}
                 </span>
               ) : null}
-              {latest ? <span>Last update {fmtDate(latest.date)}</span> : null}
+              {latest ? <span>{t("Last update {date}", { date: fmtDate(latest.date) })}</span> : null}
             </div>
             {hasDescription ? (
               <div className="mt-1.5 flex items-start gap-1 text-sm text-muted-foreground">
@@ -126,7 +130,7 @@ export function ProjectShell({ id, children }: { id: string; children: ReactNode
                 </p>
                 <button type="button" className="inline-flex shrink-0 items-center gap-0.5 text-xs hover:text-foreground" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
                   {expanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
-                  {expanded ? "Less" : "More"}
+                  {expanded ? t("Less") : t("More")}
                 </button>
               </div>
             ) : null}
@@ -134,37 +138,37 @@ export function ProjectShell({ id, children }: { id: string; children: ReactNode
           <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             <Button size="sm" variant="ghost" onClick={() => openAI({ projectId: id, action: "ask" })}>
               <Sparkles className="size-4" />
-              <span className="max-sm:hidden">Ask AI</span>
+              <span className="max-sm:hidden">{t("Ask AI")}</span>
             </Button>
             <Button size="sm" variant="outline" asChild>
               <Link href={`/projects/${id}/updates`}>
                 <MessageSquarePlus className="size-4" />
-                Post update
+                {t("Post update")}
               </Link>
             </Button>
             <Button size="sm" onClick={() => openQuickCreate("issue", id)}>
               <Plus className="size-4" />
-              New issue
+              {t("New issue")}
             </Button>
           </div>
         </div>
 
-        <nav aria-label="Project sections" className="-mx-1 overflow-x-auto">
+        <nav aria-label={t("Project sections")} className="-mx-1 overflow-x-auto">
           <ul className="flex min-w-max gap-1 border-b px-1">
-            {tabs.map((t) => {
-              const active = t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/");
-              const count = t.label === "Issues" ? openCount : t.label === "Risks" ? riskCount : null;
+            {tabs.map((tab) => {
+              const active = tab.exact ? pathname === tab.href : pathname === tab.href || pathname.startsWith(tab.href + "/");
+              const count = tab.label === "Issues" ? openCount : tab.label === "Risks" ? riskCount : null;
               return (
-                <li key={t.href}>
+                <li key={tab.href}>
                   <Link
-                    href={t.href}
+                    href={tab.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "-mb-px inline-flex items-center gap-1.5 border-b-2 px-2.5 py-2 text-sm transition-colors",
                       active ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {t.label}
+                    {t(tab.label)}
                     {count ? <span className="rounded-full bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground">{count}</span> : null}
                   </Link>
                 </li>

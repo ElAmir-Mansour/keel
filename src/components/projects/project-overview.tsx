@@ -9,6 +9,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/db";
 import { ago, fmtDate, parseYMD, todayYMD } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { burnUp, cumulativeFlow, isOpen } from "@/lib/metrics";
 import { riskScore } from "@/lib/types";
 import { useUi } from "@/lib/ui-store";
@@ -25,6 +26,7 @@ import { MilestoneProgressList, activeMilestones } from "./milestone-progress";
 const DAYS = 30;
 
 export function ProjectOverview({ id }: { id: string }) {
+  const t = useT();
   const { openAI } = useUi();
   const data = useLiveQuery(
     async () => {
@@ -87,17 +89,17 @@ export function ProjectOverview({ id }: { id: string }) {
       <Card size="sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
-            Latest update
+            {t("Latest update")}
             <HealthBadge health={m.latest?.health} />
           </CardTitle>
           <CardDescription className="text-xs">
-            {m.latest ? `${fmtDate(m.latest.date)} · posted ${ago(m.latest.createdAt)}` : "No update posted yet"}
+            {m.latest ? t("{date} · posted {ago}", { date: fmtDate(m.latest.date), ago: ago(m.latest.createdAt) }) : t("No update posted yet")}
           </CardDescription>
           <CardAction>
             <Button size="sm" variant="outline" asChild>
               <Link href={`/projects/${id}/updates`}>
                 <MessageSquarePlus className="size-4" />
-                Post update
+                {t("Post update")}
               </Link>
             </Button>
           </CardAction>
@@ -110,26 +112,30 @@ export function ProjectOverview({ id }: { id: string }) {
       </Card>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatTile label="Open" value={m.open} />
-        <StatTile label="In progress" value={m.doing} hint="Including review" />
-        <StatTile label="Done last 7 days" value={m.done7} />
-        <StatTile label="Overdue" value={m.overdue} />
-        <StatTile label="Open risks" value={m.openRisks} hint={m.highRisks ? <span className="font-medium text-[var(--viz-critical)]">{m.highRisks} scored 12 or higher</span> : undefined} />
+        <StatTile label={t("Open")} value={m.open} />
+        <StatTile label={t("In progress")} value={m.doing} hint={t("Including review")} />
+        <StatTile label={t("Done last 7 days")} value={m.done7} />
+        <StatTile label={t("Overdue")} value={m.overdue} />
+        <StatTile
+          label={t("Open risks")}
+          value={m.openRisks}
+          hint={m.highRisks ? <span className="font-medium text-[var(--viz-critical)]">{t("{n} scored 12 or higher", { n: m.highRisks })}</span> : undefined}
+        />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <BurnUpChart data={m.burn} subtitle={`Cumulative done against scope, last ${DAYS} days`} />
-        <CumulativeFlowChart data={m.flow} subtitle={`Issues in each stage, last ${DAYS} days`} />
+        <BurnUpChart data={m.burn} subtitle={t("Cumulative done against scope, last {n} days", { n: DAYS })} />
+        <CumulativeFlowChart data={m.flow} subtitle={t("Issues in each stage, last {n} days", { n: DAYS })} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Card size="sm" className="min-w-0">
           <CardHeader>
-            <CardTitle className="text-sm">Milestones</CardTitle>
-            <CardDescription className="text-xs">Progress and due dates</CardDescription>
+            <CardTitle className="text-sm">{t("Milestones")}</CardTitle>
+            <CardDescription className="text-xs">{t("Progress and due dates")}</CardDescription>
             <CardAction>
               <Button size="xs" variant="ghost" asChild>
-                <Link href={`/projects/${id}/roadmap`}>Roadmap</Link>
+                <Link href={`/projects/${id}/roadmap`}>{t("Roadmap")}</Link>
               </Button>
             </CardAction>
           </CardHeader>
@@ -139,11 +145,11 @@ export function ProjectOverview({ id }: { id: string }) {
         </Card>
         <Card size="sm" className="min-w-0">
           <CardHeader>
-            <CardTitle className="text-sm">Top risks</CardTitle>
-            <CardDescription className="text-xs">Open, by likelihood × impact</CardDescription>
+            <CardTitle className="text-sm">{t("Top risks")}</CardTitle>
+            <CardDescription className="text-xs">{t("Open, by likelihood × impact")}</CardDescription>
             <CardAction>
               <Button size="xs" variant="ghost" asChild>
-                <Link href={`/projects/${id}/risks`}>Register</Link>
+                <Link href={`/projects/${id}/risks`}>{t("Register")}</Link>
               </Button>
             </CardAction>
           </CardHeader>
@@ -161,7 +167,7 @@ export function ProjectOverview({ id }: { id: string }) {
       <div className="flex justify-end">
         <Button variant="outline" onClick={() => openAI({ projectId: id, action: "ask" })}>
           <Sparkles className="size-4" />
-          Ask AI about this project
+          {t("Ask AI about this project")}
         </Button>
       </div>
     </div>

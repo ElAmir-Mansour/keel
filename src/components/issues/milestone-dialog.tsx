@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/lib/i18n";
 import { createMilestone, deleteMilestone, updateMilestone } from "@/lib/repo";
 import type { Milestone, MilestoneStatus } from "@/lib/types";
 import { MILESTONE_STATUSES, MilestoneStatusIcon } from "./roadmap-timeline";
@@ -32,6 +33,7 @@ export function MilestoneDialog({
 }
 
 function MilestoneForm({ projectId, milestone, close }: { projectId: string; milestone: Milestone | null; close: () => void }) {
+  const t = useT();
   const [title, setTitle] = useState(milestone?.title ?? "");
   const [status, setStatus] = useState<MilestoneStatus>(milestone?.status ?? "planned");
   const [startDate, setStartDate] = useState(milestone?.startDate ?? "");
@@ -52,11 +54,11 @@ function MilestoneForm({ projectId, milestone, close }: { projectId: string; mil
         await updateMilestone(milestone.id, patch);
       } else {
         await createMilestone({ projectId, ...patch });
-        toast.success("Milestone created");
+        toast.success(t("Milestone created"));
       }
       close();
     } catch (e) {
-      toast.error("Could not save milestone", { description: e instanceof Error ? e.message : undefined });
+      toast.error(t("Could not save milestone"), { description: e instanceof Error ? e.message : undefined });
       setBusy(false);
     }
   }
@@ -67,10 +69,10 @@ function MilestoneForm({ projectId, milestone, close }: { projectId: string; mil
     setBusy(true);
     try {
       await deleteMilestone(milestone.id);
-      toast.success("Milestone deleted", { description: "Its issues were kept and now have no milestone." });
+      toast.success(t("Milestone deleted"), { description: t("Its issues were kept and now have no milestone.") });
       close();
     } catch (e) {
-      toast.error("Could not delete milestone", { description: e instanceof Error ? e.message : undefined });
+      toast.error(t("Could not delete milestone"), { description: e instanceof Error ? e.message : undefined });
       setBusy(false);
     }
   }
@@ -85,47 +87,47 @@ function MilestoneForm({ projectId, milestone, close }: { projectId: string; mil
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{milestone ? "Edit milestone" : "New milestone"}</DialogTitle>
-        <DialogDescription>A dated chunk of work: a release, a phase, a demo. Issues roll up into it.</DialogDescription>
+        <DialogTitle>{milestone ? t("Edit milestone") : t("New milestone")}</DialogTitle>
+        <DialogDescription>{t("A dated chunk of work: a release, a phase, a demo. Issues roll up into it.")}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3" onKeyDown={onKey}>
-        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Milestone title" dir="auto" aria-label="Title" />
+        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Milestone title")} dir="auto" aria-label={t("Title")} />
         <div className="flex flex-wrap items-center gap-2">
           <Select value={status} onValueChange={(v) => setStatus(v as MilestoneStatus)}>
-            <SelectTrigger size="sm" className="w-auto" aria-label="Status">
+            <SelectTrigger size="sm" className="w-auto" aria-label={t("Status")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {MILESTONE_STATUSES.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
-                  <MilestoneStatusIcon status={s.value} /> {s.label}
+                  <MilestoneStatusIcon status={s.value} /> {t(s.label)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2">
-            <Label htmlFor="ms-start" className="text-xs text-muted-foreground">Start</Label>
+            <Label htmlFor="ms-start" className="text-xs text-muted-foreground">{t("Start")}</Label>
             <Input id="ms-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-7 w-auto text-xs" />
           </div>
           <div className="flex items-center gap-2">
-            <Label htmlFor="ms-due" className="text-xs text-muted-foreground">Due</Label>
+            <Label htmlFor="ms-due" className="text-xs text-muted-foreground">{t("Due")}</Label>
             <Input id="ms-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-7 w-auto text-xs" aria-invalid={invalidRange || undefined} />
           </div>
         </div>
-        {invalidRange ? <p className="text-xs text-destructive">The due date is before the start date.</p> : null}
-        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What this milestone delivers (optional, markdown)" rows={3} dir="auto" />
+        {invalidRange ? <p className="text-xs text-destructive">{t("The due date is before the start date.")}</p> : null}
+        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("What this milestone delivers (optional, markdown)")} rows={3} dir="auto" />
       </div>
       <DialogFooter className="sm:justify-between">
         {milestone ? (
           <Button type="button" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={remove} disabled={busy}>
-            {confirmDelete ? "Confirm delete" : "Delete"}
+            {confirmDelete ? t("Confirm delete") : t("Delete")}
           </Button>
         ) : (
           <span />
         )}
         <div className="flex gap-2">
-          <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
-          <Button type="button" onClick={submit} disabled={!canSave}>{milestone ? "Save" : "Create"}</Button>
+          <Button type="button" variant="ghost" onClick={close}>{t("Cancel")}</Button>
+          <Button type="button" onClick={submit} disabled={!canSave}>{milestone ? t("Save") : t("Create")}</Button>
         </div>
       </DialogFooter>
     </>

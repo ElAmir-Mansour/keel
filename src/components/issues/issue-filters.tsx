@@ -12,10 +12,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { t, useT } from "@/lib/i18n";
 import {
   ISSUE_STATUSES,
   PRIORITIES,
   type Cycle,
+  type CycleStatus,
   type Issue,
   type IssueStatus,
   type Milestone,
@@ -45,12 +47,18 @@ export interface IssueFilterState {
 
 const STATUS_VALUES = new Set<string>(ISSUE_STATUSES.map((s) => s.value));
 const PRIORITY_VALUES = new Set<string>(PRIORITIES.map((p) => p.value));
+// Labels stay English here and are translated where they render.
 const GROUPS: { value: GroupBy; label: string }[] = [
   { value: "none", label: "No grouping" },
   { value: "status", label: "Status" },
   { value: "milestone", label: "Milestone" },
   { value: "assignee", label: "Assignee" },
 ];
+const CYCLE_LINE: Record<CycleStatus, string> = {
+  active: "Cycle {n} · active",
+  upcoming: "Cycle {n} · upcoming",
+  done: "Cycle {n} · done",
+};
 
 function parseFilters(sp: URLSearchParams): IssueFilterState {
   const list = (k: string) => (sp.get(k) ?? "").split(",").filter(Boolean);
@@ -135,6 +143,11 @@ export interface IssueGroup {
   items: Issue[];
 }
 
+/**
+ * Group labels are translated here (not at render) so that milestone titles
+ * and people's names never pass through `t`. Callers memoising the result
+ * must include the current language in their dependencies.
+ */
 export function groupIssues(issues: Issue[], by: GroupBy, ctx: { milestones: Milestone[]; people: Person[] }): IssueGroup[] {
   const sorted = [...issues].sort(compareIssues);
   if (by === "none") return [{ key: "all", label: null, items: sorted }];
@@ -145,7 +158,7 @@ export function groupIssues(issues: Issue[], by: GroupBy, ctx: { milestones: Mil
     for (const i of sorted) push(i.status, i);
     for (const s of ISSUE_STATUSES) {
       const items = buckets.get(s.value);
-      if (items) groups.push({ key: s.value, label: s.label, icon: <StatusIcon status={s.value} />, items });
+      if (items) groups.push({ key: s.value, label: t(s.label), icon: <StatusIcon status={s.value} />, items });
     }
   } else if (by === "milestone") {
     for (const i of sorted) push(i.milestoneId ?? "none", i);
@@ -154,7 +167,7 @@ export function groupIssues(issues: Issue[], by: GroupBy, ctx: { milestones: Mil
       if (items) groups.push({ key: m.id, label: m.title, icon: <Diamond className="size-3.5 text-[var(--viz-ordinal-3)]" />, items });
     }
     const none = buckets.get("none");
-    if (none) groups.push({ key: "none", label: "No milestone", icon: <Diamond className="size-3.5 text-muted-foreground" />, items: none });
+    if (none) groups.push({ key: "none", label: t("No milestone"), icon: <Diamond className="size-3.5 text-muted-foreground" />, items: none });
   } else {
     for (const i of sorted) push(i.assigneeId ?? "none", i);
     for (const p of ctx.people) {
@@ -162,7 +175,7 @@ export function groupIssues(issues: Issue[], by: GroupBy, ctx: { milestones: Mil
       if (items) groups.push({ key: p.id, label: p.name, icon: <PersonAvatar person={p} size="xs" />, items });
     }
     const none = buckets.get("none");
-    if (none) groups.push({ key: "none", label: "Unassigned", icon: <PersonAvatar person={null} size="xs" />, items: none });
+    if (none) groups.push({ key: "none", label: t("Unassigned"), icon: <PersonAvatar person={null} size="xs" />, items: none });
   }
   return groups;
 }
@@ -184,6 +197,7 @@ export function IssueFilters({
   fields?: Field[];
   className?: string;
 }) {
+  const t = useT();
   const { filters, set, clear, active } = useIssueFilters();
   const has = (f: Field) => fields.includes(f);
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -196,8 +210,8 @@ export function IssueFilters({
           <Input
             value={filters.q}
             onChange={(e) => set({ q: e.target.value })}
-            placeholder="Filter…"
-            aria-label="Filter issues"
+            placeholder={t("Filter…")}
+            aria-label={t("Filter issues")}
             dir="auto"
             className="h-7 w-40 ps-7 text-xs"
             onKeyDown={(e) => e.key === "Escape" && set({ q: "" })}
@@ -208,13 +222,13 @@ export function IssueFilters({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <FilterButton active={filters.status.length}>
-              Status
+              {t("Status")}
             </FilterButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44">
             {ISSUE_STATUSES.filter((s) => s.value !== "triage").map((s) => (
               <DropdownMenuCheckboxItem key={s.value} checked={filters.status.includes(s.value)} onCheckedChange={() => set({ status: toggle(filters.status, s.value) })} onSelect={(e) => e.preventDefault()}>
-                <StatusIcon status={s.value} /> {s.label}
+                <StatusIcon status={s.value} /> {t(s.label)}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
@@ -223,12 +237,12 @@ export function IssueFilters({
       {has("priority") ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <FilterButton active={filters.priority.length}>Priority</FilterButton>
+            <FilterButton active={filters.priority.length}>{t("Priority")}</FilterButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44">
             {PRIORITIES.map((p) => (
               <DropdownMenuCheckboxItem key={p.value} checked={filters.priority.includes(p.value)} onCheckedChange={() => set({ priority: toggle(filters.priority, p.value) })} onSelect={(e) => e.preventDefault()}>
-                <PriorityIcon priority={p.value} /> {p.label}
+                <PriorityIcon priority={p.value} /> {t(p.label)}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
@@ -236,13 +250,13 @@ export function IssueFilters({
       ) : null}
       {has("assignee") ? (
         <Select value={filters.assignee || "__any"} onValueChange={(v) => set({ assignee: v === "__any" ? "" : v })}>
-          <SelectTrigger size="sm" className={cn("h-7 text-xs", filters.assignee && "border-foreground/40")} aria-label="Assignee">
-            <SelectValue placeholder="Assignee" />
+          <SelectTrigger size="sm" className={cn("h-7 text-xs", filters.assignee && "border-foreground/40")} aria-label={t("Assignee")}>
+            <SelectValue placeholder={t("Assignee")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__any">Anyone</SelectItem>
+            <SelectItem value="__any">{t("Anyone")}</SelectItem>
             <SelectItem value="none">
-              <PersonAvatar person={null} size="xs" /> Unassigned
+              <PersonAvatar person={null} size="xs" /> {t("Unassigned")}
             </SelectItem>
             {people.map((p) => (
               <SelectItem key={p.id} value={p.id}>
@@ -254,12 +268,12 @@ export function IssueFilters({
       ) : null}
       {has("milestone") ? (
         <Select value={filters.milestone || "__any"} onValueChange={(v) => set({ milestone: v === "__any" ? "" : v })}>
-          <SelectTrigger size="sm" className={cn("h-7 max-w-48 text-xs", filters.milestone && "border-foreground/40")} aria-label="Milestone">
-            <SelectValue placeholder="Milestone" />
+          <SelectTrigger size="sm" className={cn("h-7 max-w-48 text-xs", filters.milestone && "border-foreground/40")} aria-label={t("Milestone")}>
+            <SelectValue placeholder={t("Milestone")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__any">Any milestone</SelectItem>
-            <SelectItem value="none">No milestone</SelectItem>
+            <SelectItem value="__any">{t("Any milestone")}</SelectItem>
+            <SelectItem value="none">{t("No milestone")}</SelectItem>
             {milestones.map((m) => (
               <SelectItem key={m.id} value={m.id}>
                 <Diamond className="text-[var(--viz-ordinal-3)]" /> <span dir="auto">{m.title}</span>
@@ -270,19 +284,19 @@ export function IssueFilters({
       ) : null}
       {has("cycle") && cycles.length ? (
         <Select value={filters.cycle || "__any"} onValueChange={(v) => set({ cycle: v === "__any" ? "" : v })}>
-          <SelectTrigger size="sm" className={cn("h-7 max-w-40 text-xs", filters.cycle && "border-foreground/40")} aria-label="Cycle">
-            <SelectValue placeholder="Cycle" />
+          <SelectTrigger size="sm" className={cn("h-7 max-w-40 text-xs", filters.cycle && "border-foreground/40")} aria-label={t("Cycle")}>
+            <SelectValue placeholder={t("Cycle")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__any">Any cycle</SelectItem>
-            <SelectItem value="active">Current cycle</SelectItem>
-            <SelectItem value="none">Not in a cycle</SelectItem>
+            <SelectItem value="__any">{t("Any cycle")}</SelectItem>
+            <SelectItem value="active">{t("Current cycle")}</SelectItem>
+            <SelectItem value="none">{t("Not in a cycle")}</SelectItem>
             {[...cycles]
               .sort((a, b) => b.number - a.number)
               .slice(0, 12)
               .map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  Cycle {c.number} · {c.status}
+                  {t(CYCLE_LINE[c.status], { n: c.number })}
                 </SelectItem>
               ))}
           </SelectContent>
@@ -290,14 +304,14 @@ export function IssueFilters({
       ) : null}
       {has("group") ? (
         <Select value={filters.group} onValueChange={(v) => set({ group: v as GroupBy })}>
-          <SelectTrigger size="sm" className="h-7 text-xs" aria-label="Group by">
-            <span className="text-muted-foreground">Group</span>
+          <SelectTrigger size="sm" className="h-7 text-xs" aria-label={t("Group by")}>
+            <span className="text-muted-foreground">{t("Group")}</span>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {GROUPS.map((g) => (
               <SelectItem key={g.value} value={g.value}>
-                {g.label}
+                {t(g.label)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -305,7 +319,7 @@ export function IssueFilters({
       ) : null}
       {active ? (
         <Button type="button" variant="ghost" size="xs" onClick={clear} className="text-muted-foreground">
-          <X /> Clear
+          <X /> {t("Clear")}
         </Button>
       ) : null}
     </div>

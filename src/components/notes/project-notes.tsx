@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui-bits";
 import { useProjects } from "@/hooks/use-data";
 import { db } from "@/lib/db";
+import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui-store";
 import { NoteList, type NoteListFilters } from "./note-list";
 
@@ -14,6 +15,7 @@ import { NoteList, type NoteListFilters } from "./note-list";
 export function ProjectNotes() {
   const { id } = useParams<{ id: string }>();
   const { openQuickCreate } = useUi();
+  const t = useT();
   const projects = useProjects();
   const notes = useLiveQuery(() => db.notes.where({ projectId: id }).toArray(), [id], null);
   const [filters, setFilters] = useState<NoteListFilters>({ q: "", kind: "", sort: "" });
@@ -22,10 +24,10 @@ export function ProjectNotes() {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          {notes ? `${notes.length} ${notes.length === 1 ? "note" : "notes"} linked to this project` : "Loading notes"}
+          {notes ? (notes.length === 1 ? t("1 note linked to this project") : t("{n} notes linked to this project", { n: notes.length })) : t("Loading notes")}
         </p>
         <Button size="sm" onClick={() => openQuickCreate("note", id)}>
-          <Plus /> New note for this project
+          <Plus /> {t("New note for this project")}
         </Button>
       </div>
       <NoteList
@@ -36,9 +38,9 @@ export function ProjectNotes() {
         loading={notes === null}
         emptyState={
           notes && notes.length === 0 ? (
-            <EmptyState icon={<FileText />} title="No notes for this project yet" description="Meeting notes, specs, runbooks and post-mortems filed under this project show up here.">
+            <EmptyState icon={<FileText />} title={t("No notes for this project yet")} description={t("Meeting notes, specs, runbooks and post-mortems filed under this project show up here.")}>
               <Button size="sm" onClick={() => openQuickCreate("note", id)}>
-                <Plus /> New note
+                <Plus /> {t("New note")}
               </Button>
             </EmptyState>
           ) : undefined

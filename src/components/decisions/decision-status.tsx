@@ -1,6 +1,7 @@
 "use client";
 import { Ban, CheckCircle2, CircleDashed, History } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { DECISION_STATUSES, type DecisionStatus } from "@/lib/types";
 
 export function decisionStatusLabel(status: DecisionStatus) {
@@ -22,10 +23,11 @@ export function DecisionStatusIcon({ status, className }: { status: DecisionStat
 }
 
 export function DecisionStatusBadge({ status, className }: { status: DecisionStatus; className?: string }) {
+  const t = useT();
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs", status === "deprecated" || status === "superseded" ? "text-muted-foreground" : "text-foreground", className)}>
       <DecisionStatusIcon status={status} />
-      {decisionStatusLabel(status)}
+      {t(decisionStatusLabel(status))}
     </span>
   );
 }

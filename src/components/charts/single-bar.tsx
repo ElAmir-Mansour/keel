@@ -59,21 +59,23 @@ export function SingleBarChart({
       height={HEIGHT}
       action={action}
     >
-      <ResponsiveContainer width="100%" height={HEIGHT}>
-        <BarChart data={data} margin={{ top: 16, right: 8, bottom: 0, left: 0 }} barCategoryGap="30%">
-          <CartesianGrid vertical={false} stroke={CHROME.grid} strokeWidth={1} />
-          <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHROME.axis }} tickFormatter={tickFormatter} interval="preserveStartEnd" minTickGap={16} />
-          <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={30} allowDecimals={false} />
-          <Tooltip
-            cursor={BAR_CURSOR}
-            isAnimationActive={false}
-            content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} series={series} labelFormatter={(l) => (labelFormatter ? labelFormatter(String(l)) : l)} />}
-          />
-          <Bar dataKey="value" fill={SERIES[0]} maxBarSize={24} isAnimationActive={false} shape={ColumnShape}>
-            <LabelList dataKey="value" content={(p) => <MaxLabel {...p} maxIndex={maxIndex} />} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="ltr-island">
+        <ResponsiveContainer width="100%" height={HEIGHT}>
+          <BarChart data={data} margin={{ top: 16, right: 8, bottom: 0, left: 0 }} barCategoryGap="30%">
+            <CartesianGrid vertical={false} stroke={CHROME.grid} strokeWidth={1} />
+            <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: CHROME.axis }} tickFormatter={tickFormatter} interval="preserveStartEnd" minTickGap={16} />
+            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={30} allowDecimals={false} />
+            <Tooltip
+              cursor={BAR_CURSOR}
+              isAnimationActive={false}
+              content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} series={series} labelFormatter={(l) => (labelFormatter ? labelFormatter(String(l)) : l)} />}
+            />
+            <Bar dataKey="value" fill={SERIES[0]} maxBarSize={24} isAnimationActive={false} shape={ColumnShape}>
+              <LabelList dataKey="value" content={(p) => <MaxLabel {...p} maxIndex={maxIndex} />} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </ChartCard>
   );
 }

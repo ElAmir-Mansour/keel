@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { daysUntil, fmtShort } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { isOpen, milestoneProgress } from "@/lib/metrics";
 import type { Issue, Milestone, Project, Update } from "@/lib/types";
 import { HealthBadge, ProjectDot } from "@/components/ui-bits";
@@ -46,6 +47,7 @@ export function ProjectHealthCards({
 }
 
 function ProjectHealthCard({ project, issues, milestones, update }: { project: Project; issues: Issue[]; milestones: Milestone[]; update?: Update }) {
+  const t = useT();
   const open = issues.filter(isOpen).length;
   const days = daysUntil(project.targetDate);
   const active =
@@ -74,20 +76,18 @@ function ProjectHealthCard({ project, issues, milestones, update }: { project: P
           {project.targetDate ? (
             <span className={cn("inline-flex items-center gap-1 tabular-nums", overdueTarget && "text-[var(--viz-critical)]")}>
               <CalendarDays className="size-3" aria-hidden />
-              {days === null ? fmtShort(project.targetDate) : days < 0 ? `${-days} d past target` : days === 0 ? "Target today" : `${days} d to target`}
+              {days === null ? fmtShort(project.targetDate) : days < 0 ? t("{n} d past target", { n: -days }) : days === 0 ? t("Target today") : t("{n} d to target", { n: days })}
             </span>
           ) : (
-            <span>No target date</span>
+            <span>{t("No target date")}</span>
           )}
-          <span className="tabular-nums">
-            {open} open issue{open === 1 ? "" : "s"}
-          </span>
-          {project.status === "paused" ? <span>Paused</span> : null}
+          <span className="tabular-nums">{open === 1 ? t("1 open issue") : t("{n} open issues", { n: open })}</span>
+          {project.status === "paused" ? <span>{t("Paused")}</span> : null}
         </div>
         <div>
           <div className="mb-1 flex items-center justify-between gap-2 text-xs">
             <span className="truncate text-muted-foreground" dir="auto">
-              {active ? active.title : "All issues"}
+              {active ? active.title : t("All issues")}
             </span>
             <span className="tabular-nums text-muted-foreground">
               {progress.done}/{progress.total}
@@ -96,10 +96,10 @@ function ProjectHealthCard({ project, issues, milestones, update }: { project: P
           <Meter pct={progress.pct} overdue={active ? (daysUntil(active.dueDate) ?? 0) < 0 && progress.pct < 100 : false} />
         </div>
         <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">{update ? `Updated ${fmtShort(update.date)}` : "No update yet"}</span>
+          <span className="text-muted-foreground">{update ? t("Updated {date}", { date: fmtShort(update.date) }) : t("No update yet")}</span>
           <Link href={`/projects/${project.id}/updates`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline">
             <MessageSquarePlus className="size-3" aria-hidden />
-            Post update
+            {t("Post update")}
           </Link>
         </div>
       </CardContent>

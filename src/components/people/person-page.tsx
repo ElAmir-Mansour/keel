@@ -13,6 +13,7 @@ import { EmptyState, IssueKey, PersonAvatar, PriorityIcon, ProjectChip, Section,
 import { useProjects } from "@/hooks/use-data";
 import { db } from "@/lib/db";
 import { fmtDate, fmtShort, isOverdue, todayYMD } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { isOpen } from "@/lib/metrics";
 import { createNote, deletePerson, updatePerson } from "@/lib/repo";
 import { NOTE_TEMPLATES } from "@/lib/templates";
@@ -26,6 +27,7 @@ export function PersonPage() {
   const { id } = useParams<{ id: string }>();
   const person = useLiveQuery(() => db.people.get(id).then((p) => p ?? null), [id], undefined);
   const [deleted, setDeleted] = useState(false);
+  const t = useT();
 
   if (person === undefined || (person === null && deleted)) {
     return (
@@ -37,9 +39,9 @@ export function PersonPage() {
   }
   if (person === null) {
     return (
-      <EmptyState icon={<Users />} title="Person not found" description="They may have been removed.">
+      <EmptyState icon={<Users />} title={t("Person not found")} description={t("They may have been removed.")}>
         <Button asChild size="sm" variant="outline">
-          <Link href="/team">Back to people</Link>
+          <Link href="/team">{t("Back to people")}</Link>
         </Button>
       </EmptyState>
     );
@@ -49,6 +51,7 @@ export function PersonPage() {
 
 function Loaded({ person, onDeleted }: { person: Person; onDeleted: () => void }) {
   const router = useRouter();
+  const t = useT();
   const projects = useProjects();
   const issues = useLiveQuery(() => db.issues.where({ assigneeId: person.id }).toArray(), [person.id], []);
   const notes = useLiveQuery(() => db.notes.where({ personId: person.id }).toArray(), [person.id], null);
@@ -79,14 +82,14 @@ function Loaded({ person, onDeleted }: { person: Person; onDeleted: () => void }
 
   async function newOneOnOne() {
     // The date keeps titles unique so [[links]] to a specific 1:1 resolve.
-    const n = await createNote({ kind: "oneonone", personId: person.id, title: `1:1 — ${person.name} · ${todayYMD()}`, body: NOTE_TEMPLATES.oneonone });
+    const n = await createNote({ kind: "oneonone", personId: person.id, title: t("1:1 — {name} · {date}", { name: person.name, date: todayYMD() }), body: NOTE_TEMPLATES.oneonone });
     router.push(`/notes/${n.id}`);
   }
 
   async function remove() {
     onDeleted();
     await deletePerson(person.id);
-    toast.success(`${person.name} removed`);
+    toast.success(t("{name} removed", { name: person.name }));
     router.replace("/team");
   }
 
@@ -101,21 +104,21 @@ function Loaded({ person, onDeleted }: { person: Person; onDeleted: () => void }
             onKeyDown={(e) => {
               if (e.key === "Escape" || e.key === "Enter") e.currentTarget.blur();
             }}
-            aria-label="Name"
+            aria-label={t("Name")}
             dir="auto"
             className="w-full bg-transparent text-2xl font-semibold tracking-tight outline-none"
           />
           <div className="flex flex-wrap gap-2">
-            <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Role" aria-label="Role" dir="auto" className="h-7 w-56 text-xs" />
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" aria-label="Email" type="email" className="h-7 w-56 text-xs" />
-            <div className="flex items-center gap-1" role="radiogroup" aria-label="Colour">
+            <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t("Role")} aria-label={t("Role")} dir="auto" className="h-7 w-56 text-xs" />
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("Email")} aria-label={t("Email")} type="email" className="h-7 w-56 text-xs" />
+            <div className="flex items-center gap-1" role="radiogroup" aria-label={t("Colour")}>
               {PROJECT_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   role="radio"
                   aria-checked={person.color === c}
-                  aria-label={`Colour ${c}`}
+                  aria-label={t("Colour {c}", { c })}
                   onClick={() => void updatePerson(person.id, { color: c })}
                   className={cn("size-5 rounded-full border-2", person.color === c ? "border-foreground" : "border-transparent")}
                   style={{ backgroundColor: c }}
@@ -126,20 +129,20 @@ function Loaded({ person, onDeleted }: { person: Person; onDeleted: () => void }
         </div>
         <div className="flex shrink-0 flex-wrap gap-1.5">
           <Button size="sm" onClick={() => void newOneOnOne()}>
-            <MessageSquare /> New 1:1 note
+            <MessageSquare /> {t("New 1:1 note")}
           </Button>
           <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}>
-            <Trash2 /> Delete
+            <Trash2 /> {t("Delete")}
           </Button>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Section title={`1:1 notes${oneOnOnes.length ? ` · ${oneOnOnes.length}` : ""}`}>
+        <Section title={`${t("1:1 notes")}${oneOnOnes.length ? ` · ${oneOnOnes.length}` : ""}`}>
           {notes === null ? (
             <Skeleton className="h-20" />
           ) : oneOnOnes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No 1:1 notes yet. The first one starts from the 1:1 template.</p>
+            <p className="text-sm text-muted-foreground">{t("No 1:1 notes yet. The first one starts from the 1:1 template.")}</p>
           ) : (
             <ul className="divide-y rounded-lg border bg-card">
               {oneOnOnes.map((n) => (
@@ -164,9 +167,9 @@ function Loaded({ person, onDeleted }: { person: Person; onDeleted: () => void }
           )}
         </Section>
 
-        <Section title={`Open issues${openCount ? ` · ${openCount}` : ""}`}>
+        <Section title={`${t("Open issues")}${openCount ? ` · ${openCount}` : ""}`}>
           {groups.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing assigned right now.</p>
+            <p className="text-sm text-muted-foreground">{t("Nothing assigned right now.")}</p>
           ) : (
             <div className="space-y-3">
               {groups.map((g) => (
@@ -204,8 +207,8 @@ function Loaded({ person, onDeleted }: { person: Person; onDeleted: () => void }
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title={`Remove ${person.name}?`}
-        description="Their issues become unassigned and their risks lose an owner. Notes are kept."
+        title={t("Remove {name}?", { name: person.name })}
+        description={t("Their issues become unassigned and their risks lose an owner. Notes are kept.")}
         confirmLabel="Remove"
         destructive
         onConfirm={remove}

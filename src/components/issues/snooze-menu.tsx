@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fmtShort, parseYMD, todayYMD, ymd } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 
 // Snoozed issues come back at 09:00 local on the chosen day.
 const WAKE_HOUR = 9;
@@ -36,6 +37,7 @@ export function SnoozeMenu({
   compact?: boolean;
   className?: string;
 }) {
+  const t = useT();
   const [pickDate, setPickDate] = useState(false);
   const presets = useMemo(() => snoozePresets(parseYMD(todayYMD())), []);
 
@@ -54,26 +56,26 @@ export function SnoozeMenu({
       }}
     >
       <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="xs" className={cn("text-muted-foreground", className)} aria-label="Snooze">
+        <Button type="button" variant="ghost" size="xs" className={cn("text-muted-foreground", className)} aria-label={t("Snooze")}>
           <Clock />
-          {compact ? null : <span className="max-md:hidden">Snooze</span>}
+          {compact ? null : <span className="max-md:hidden">{t("Snooze")}</span>}
           <Kbd className="max-md:hidden">H</Kbd>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-48 gap-0.5 p-1">
-        <SnoozeOption autoFocus label="Tomorrow" hint={fmtShort(ymd(presets.tomorrow))} onClick={() => choose(presets.tomorrow)} />
-        <SnoozeOption label="Next week" hint={fmtShort(ymd(presets.nextWeek))} onClick={() => choose(presets.nextWeek)} />
+        <SnoozeOption autoFocus label={t("Tomorrow")} hint={fmtShort(ymd(presets.tomorrow))} onClick={() => choose(presets.tomorrow)} />
+        <SnoozeOption label={t("Next week")} hint={fmtShort(ymd(presets.nextWeek))} onClick={() => choose(presets.nextWeek)} />
         {pickDate ? (
           <Input
             type="date"
             autoFocus
             min={todayYMD()}
-            aria-label="Snooze until"
+            aria-label={t("Snooze until")}
             className="mt-0.5 h-8 text-xs"
             onChange={(e) => e.target.value && choose(wakeAt(parseYMD(e.target.value)))}
           />
         ) : (
-          <SnoozeOption label="Pick a date…" onClick={() => setPickDate(true)} />
+          <SnoozeOption label={t("Pick a date…")} onClick={() => setPickDate(true)} />
         )}
       </PopoverContent>
     </Popover>

@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, Circ
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { fmtDate, isOverdue, parseYMD } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { milestoneProgress } from "@/lib/metrics";
 import type { Issue, Milestone, MilestoneStatus, Person, Project } from "@/lib/types";
 import { MarkdownView } from "@/components/markdown";
@@ -14,12 +15,14 @@ import { compareIssues } from "./issue-utils";
 // column. Inside each track, a nested grid has one column per day, so bars
 // are placed with grid-column and follow the writing direction for free.
 
+// Labels stay English here; render them through t().
 export const MILESTONE_STATUSES: { value: MilestoneStatus; label: string }[] = [
   { value: "planned", label: "Planned" },
   { value: "active", label: "Active" },
   { value: "done", label: "Done" },
 ];
 
+/** English label for a milestone status; wrap in t() where it renders. */
 export function milestoneStatusLabel(s: MilestoneStatus) {
   return MILESTONE_STATUSES.find((x) => x.value === s)?.label ?? s;
 }
@@ -110,6 +113,7 @@ export function RoadmapTimeline({
   onEdit: (m: Milestone) => void;
   onMove: (m: Milestone, dir: -1 | 1) => void;
 }) {
+  const t = useT();
   const { days, weeks, todayIdx } = range;
   const showToday = todayIdx >= 0 && todayIdx < days;
   const weekLabelEvery = weeks.length > 20 ? 4 : weeks.length > 10 ? 2 : 1;
@@ -126,7 +130,7 @@ export function RoadmapTimeline({
   return (
     <div className="overflow-hidden rounded-lg border">
       <div className="grid grid-cols-[9rem_minmax(0,1fr)] md:grid-cols-[18rem_minmax(0,1fr)]">
-        <div className="border-b border-e bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">Milestone</div>
+        <div className="border-b border-e bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">{t("Milestone")}</div>
         <div className="border-b bg-muted/40">
           <div style={dayGrid(days)} className="h-5 text-[10px] font-medium text-muted-foreground">
             {months.map((m) => (
@@ -150,7 +154,9 @@ export function RoadmapTimeline({
           const overdue = isMilestoneOverdue(m);
           const isOpen = expanded === m.id;
           const mine = issues.filter((x) => x.milestoneId === m.id).sort(compareIssues);
-          const dates = m.startDate || m.dueDate ? [m.startDate ? fmtDate(m.startDate) : "…", m.dueDate ? fmtDate(m.dueDate) : "…"].join(" → ") : "No dates";
+          // Formatted dates are LTR runs, so the arrow between them reads
+          // correctly in either document direction and is left as is.
+          const dates = m.startDate || m.dueDate ? [m.startDate ? fmtDate(m.startDate) : "…", m.dueDate ? fmtDate(m.dueDate) : "…"].join(" → ") : t("No dates");
           return (
             <div key={m.id} className="contents">
               <div className={cn("flex items-center border-b border-e", isOpen && "bg-muted/30")}>
@@ -166,16 +172,16 @@ export function RoadmapTimeline({
                     <span className="block truncate font-medium" dir="auto">{m.title}</span>
                     <span className={cn("flex items-center gap-1.5 text-xs", overdue ? "text-[var(--viz-critical)]" : "text-muted-foreground")}>
                       {overdue ? <AlertTriangle className="size-3" /> : null}
-                      {overdue ? "Overdue" : milestoneStatusLabel(m.status)}
+                      {overdue ? t("Overdue") : t(milestoneStatusLabel(m.status))}
                       <span className="tabular text-muted-foreground">· {progress.done}/{progress.total}</span>
                     </span>
                   </span>
                 </button>
                 <div className="hidden flex-col pe-1 md:flex">
-                  <Button type="button" variant="ghost" size="icon-xs" aria-label="Move up" disabled={i === 0} onClick={() => onMove(m, -1)}>
+                  <Button type="button" variant="ghost" size="icon-xs" aria-label={t("Move up")} disabled={i === 0} onClick={() => onMove(m, -1)}>
                     <ChevronUp />
                   </Button>
-                  <Button type="button" variant="ghost" size="icon-xs" aria-label="Move down" disabled={i === milestones.length - 1} onClick={() => onMove(m, 1)}>
+                  <Button type="button" variant="ghost" size="icon-xs" aria-label={t("Move down")} disabled={i === milestones.length - 1} onClick={() => onMove(m, 1)}>
                     <ChevronDown />
                   </Button>
                 </div>
@@ -187,12 +193,12 @@ export function RoadmapTimeline({
                     <div key={w.toISOString()} style={{ gridRow: 1, gridColumn: `${wi * 7 + 1} / span 7` }} className="border-s border-border/60" />
                   ))}
                   {showToday ? (
-                    <div style={{ gridRow: 1, gridColumn: `${todayIdx + 1} / span 1` }} className="h-full w-0.5 justify-self-start bg-[var(--viz-series-2)]" title="Today" />
+                    <div style={{ gridRow: 1, gridColumn: `${todayIdx + 1} / span 1` }} className="h-full w-0.5 justify-self-start bg-[var(--viz-series-2)]" title={t("Today")} />
                   ) : null}
                   {bar.kind === "bar" ? (
                     <div
                       style={{ gridRow: 1, gridColumn: `${bar.from + 1} / ${bar.to + 2}` }}
-                      title={`${m.title} · ${dates} · ${progress.pct}% done`}
+                      title={t("{title} · {dates} · {pct}% done", { title: m.title, dates, pct: progress.pct })}
                       className={cn(
                         "relative z-10 my-3 h-6 min-w-1 self-center overflow-hidden rounded-md bg-[color-mix(in_oklab,var(--viz-ordinal-1)_35%,transparent)]",
                         bar.open && "rounded-e-none border-e-2 border-dashed border-[var(--viz-ordinal-3)]",
@@ -206,12 +212,12 @@ export function RoadmapTimeline({
                       </div>
                     </div>
                   ) : bar.kind === "diamond" ? (
-                    <div style={{ gridRow: 1, gridColumn: `${bar.at + 1} / span 1` }} className="relative z-10 flex items-center justify-center" title={`${m.title} · due ${fmtDate(m.dueDate)}`}>
+                    <div style={{ gridRow: 1, gridColumn: `${bar.at + 1} / span 1` }} className="relative z-10 flex items-center justify-center" title={t("{title} · due {date}", { title: m.title, date: fmtDate(m.dueDate) })}>
                       <span className={cn("block size-3 rotate-45 rounded-[2px]", overdue ? "bg-[var(--viz-critical)]" : "bg-[var(--viz-ordinal-3)]")} />
                     </div>
                   ) : (
                     <div style={{ gridRow: 1, gridColumn: `1 / -1` }} className="self-center px-2 text-xs text-muted-foreground">
-                      No dates yet
+                      {t("No dates yet")}
                     </div>
                   )}
                 </div>
@@ -222,20 +228,20 @@ export function RoadmapTimeline({
                   <div className="flex flex-wrap items-start gap-3">
                     <div className="min-w-0 flex-1 space-y-1 text-sm">
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1"><MilestoneStatusIcon status={m.status} />{milestoneStatusLabel(m.status)}</span>
+                        <span className="inline-flex items-center gap-1"><MilestoneStatusIcon status={m.status} />{t(milestoneStatusLabel(m.status))}</span>
                         <span>{dates}</span>
-                        <span className="tabular">{progress.done}/{progress.total} done</span>
-                        {overdue ? <span className="inline-flex items-center gap-1 text-[var(--viz-critical)]"><AlertTriangle className="size-3" /> Overdue</span> : null}
+                        <span className="tabular">{t("{done}/{total} done", { done: progress.done, total: progress.total })}</span>
+                        {overdue ? <span className="inline-flex items-center gap-1 text-[var(--viz-critical)]"><AlertTriangle className="size-3" /> {t("Overdue")}</span> : null}
                       </div>
                       {m.description.trim() ? <MarkdownView body={m.description} className="text-sm" /> : null}
                     </div>
                     <div className="flex items-center gap-1">
                       <Button type="button" variant="outline" size="sm" onClick={() => onEdit(m)}>
-                        <Pencil /> Edit
+                        <Pencil /> {t("Edit")}
                       </Button>
                       <div className="flex md:hidden">
-                        <Button type="button" variant="ghost" size="icon-sm" aria-label="Move up" disabled={i === 0} onClick={() => onMove(m, -1)}><ChevronUp /></Button>
-                        <Button type="button" variant="ghost" size="icon-sm" aria-label="Move down" disabled={i === milestones.length - 1} onClick={() => onMove(m, 1)}><ChevronDown /></Button>
+                        <Button type="button" variant="ghost" size="icon-sm" aria-label={t("Move up")} disabled={i === 0} onClick={() => onMove(m, -1)}><ChevronUp /></Button>
+                        <Button type="button" variant="ghost" size="icon-sm" aria-label={t("Move down")} disabled={i === milestones.length - 1} onClick={() => onMove(m, 1)}><ChevronDown /></Button>
                       </div>
                     </div>
                   </div>
@@ -246,7 +252,7 @@ export function RoadmapTimeline({
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-3 text-xs text-muted-foreground">No issues in this milestone yet. Assign some from the list below.</p>
+                    <p className="mt-3 text-xs text-muted-foreground">{t("No issues in this milestone yet. Assign some from the list below.")}</p>
                   )}
                 </div>
               ) : null}

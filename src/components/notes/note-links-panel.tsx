@@ -5,6 +5,7 @@ import { CircleDot, FilePlus, FileText, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KindBadge, ProjectChip } from "@/components/ui-bits";
 import { ago, fmtDate } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { NOTE_STATUSES, type Note, type Project } from "@/lib/types";
 import { backlinksTo, extractLinks, resolveLink, type LinkIndex } from "@/lib/wikilinks";
 import { noteSnippet } from "./note-list";
@@ -32,9 +33,10 @@ function mentionSnippet(body: string, targets: string[]) {
 }
 
 /** Notes whose body links to one of `targets` (a title, KEY-12 or ADR-3). */
-export function BacklinkList({ targets, notes, excludeId, emptyText = "Nothing links here yet." }: { targets: string[]; notes: Note[]; excludeId?: string; emptyText?: string }) {
+export function BacklinkList({ targets, notes, excludeId, emptyText }: { targets: string[]; notes: Note[]; excludeId?: string; emptyText?: string }) {
+  const t = useT();
   const rows = useMemo(() => backlinksTo(targets, notes).filter((n) => n.id !== excludeId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [targets, notes, excludeId]);
-  if (!rows.length) return <p className="text-xs text-muted-foreground">{emptyText}</p>;
+  if (!rows.length) return <p className="text-xs text-muted-foreground">{emptyText ?? t("Nothing links here yet.")}</p>;
   return (
     <ul className="space-y-1">
       {rows.map((n) => {
@@ -63,6 +65,7 @@ export function BacklinkList({ targets, notes, excludeId, emptyText = "Nothing l
 
 /** Outgoing links, backlinks and a properties summary for a note. */
 export function NoteLinksPanel({ note, body, idx, project, className }: { note: Note; body: string; idx: LinkIndex; project?: Project | null; className?: string }) {
+  const t = useT();
   const outgoing = useMemo(() => {
     const seen = new Set<string>();
     const out: { target: string; r: ReturnType<typeof resolveLink> }[] = [];
@@ -80,7 +83,7 @@ export function NoteLinksPanel({ note, body, idx, project, className }: { note: 
 
   return (
     <div className={cn("space-y-5 text-sm", className)}>
-      <PanelSection title="Links" count={outgoing.length}>
+      <PanelSection title={t("Links")} count={outgoing.length}>
         {outgoing.length ? (
           <ul className="space-y-0.5">
             {outgoing.map(({ target, r }) => (
@@ -88,7 +91,7 @@ export function NoteLinksPanel({ note, body, idx, project, className }: { note: 
                 <Link
                   href={r.href}
                   className={cn("flex items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-muted/60", r.kind === "missing" && "text-muted-foreground")}
-                  title={r.kind === "missing" ? `Create "${target}"` : r.kind === "issue" ? r.issue.title : r.kind === "decision" ? r.decision.title : r.label}
+                  title={r.kind === "missing" ? t('Create "{name}"', { name: target }) : r.kind === "issue" ? r.issue.title : r.kind === "decision" ? r.decision.title : r.label}
                 >
                   {r.kind === "note" ? <FileText className="size-3.5 shrink-0 text-muted-foreground" /> : null}
                   {r.kind === "issue" ? <CircleDot className="size-3.5 shrink-0 text-muted-foreground" /> : null}
@@ -97,33 +100,33 @@ export function NoteLinksPanel({ note, body, idx, project, className }: { note: 
                   <span className={cn("truncate", r.kind === "issue" && "font-mono text-xs", r.kind === "missing" && "underline decoration-dashed underline-offset-2")} dir="auto">
                     {r.label}
                   </span>
-                  {r.kind === "missing" ? <span className="ms-auto text-[10px] uppercase tracking-wide">create</span> : null}
+                  {r.kind === "missing" ? <span className="ms-auto text-[10px] uppercase tracking-wide">{t("create")}</span> : null}
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground">No links yet. Type [[ in the body to link a note, issue or decision.</p>
+          <p className="text-xs text-muted-foreground">{t("No links yet. Type [[ in the body to link a note, issue or decision.")}</p>
         )}
       </PanelSection>
 
-      <PanelSection title="Backlinks">
+      <PanelSection title={t("Backlinks")}>
         <BacklinkList targets={targets} notes={idx.notes} excludeId={note.id} />
       </PanelSection>
 
-      <PanelSection title="Properties">
+      <PanelSection title={t("Properties")}>
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-          <dt className="text-muted-foreground">Kind</dt>
+          <dt className="text-muted-foreground">{t("Kind")}</dt>
           <dd>
             <KindBadge kind={note.kind} />
           </dd>
-          <dt className="text-muted-foreground">Folder</dt>
+          <dt className="text-muted-foreground">{t("Folder")}</dt>
           <dd className="truncate" dir="auto">
             {note.folder}
           </dd>
           {project ? (
             <>
-              <dt className="text-muted-foreground">Project</dt>
+              <dt className="text-muted-foreground">{t("Project")}</dt>
               <dd>
                 <ProjectChip project={project} />
               </dd>
@@ -131,31 +134,31 @@ export function NoteLinksPanel({ note, body, idx, project, className }: { note: 
           ) : null}
           {status ? (
             <>
-              <dt className="text-muted-foreground">Status</dt>
-              <dd>{status}</dd>
+              <dt className="text-muted-foreground">{t("Status")}</dt>
+              <dd>{t(status)}</dd>
             </>
           ) : null}
-          <dt className="text-muted-foreground">Date</dt>
+          <dt className="text-muted-foreground">{t("Date")}</dt>
           <dd className="tabular">{fmtDate(note.date)}</dd>
           {note.tags.length ? (
             <>
-              <dt className="text-muted-foreground">Tags</dt>
+              <dt className="text-muted-foreground">{t("Tags")}</dt>
               <dd className="truncate" dir="auto">
-                {note.tags.map((t) => `#${t}`).join(" ")}
+                {note.tags.map((tag) => `#${tag}`).join(" ")}
               </dd>
             </>
           ) : null}
-          <dt className="text-muted-foreground">Created</dt>
+          <dt className="text-muted-foreground">{t("Created")}</dt>
           <dd className="tabular" title={note.createdAt}>
             {fmtDate(note.createdAt, "d MMM yyyy, HH:mm")}
           </dd>
-          <dt className="text-muted-foreground">Updated</dt>
+          <dt className="text-muted-foreground">{t("Updated")}</dt>
           <dd className="tabular" title={note.updatedAt}>
             {ago(note.updatedAt)}
           </dd>
-          <dt className="text-muted-foreground">Length</dt>
+          <dt className="text-muted-foreground">{t("Length")}</dt>
           <dd className="tabular">
-            {words} {words === 1 ? "word" : "words"} · {body.length.toLocaleString()} chars
+            {words === 1 ? t("1 word") : t("{n} words", { n: words })} · {t("{n} chars", { n: body.length.toLocaleString() })}
           </dd>
         </dl>
       </PanelSection>

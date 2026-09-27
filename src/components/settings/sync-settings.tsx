@@ -10,12 +10,15 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
 import { ago } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { clearSyncConfig, forgetCursors, getSyncConfig, saveSyncConfig, setAutoSync, signInWithEmail, signOut, syncNow, useSyncStatus, wipeRemote } from "@/lib/sync/service";
 
-const SQL_HINT = `-- In your Supabase project: SQL editor → New query → paste supabase/schema.sql from the repo → Run.
--- Then Authentication → Providers → Email: enable, and add ${typeof location !== "undefined" ? location.origin : "your app URL"}/settings to the redirect URLs.`;
+// Setup snippet: deliberately not translated (it names menus and a file in the repo).
+const sqlHint = (origin: string) => `-- In your Supabase project: SQL editor → New query → paste supabase/schema.sql from the repo → Run.
+-- Then Authentication → Providers → Email: enable, and add ${origin}/settings to the redirect URLs.`;
 
 export function SyncSettings() {
+  const t = useT();
   const s = useSyncStatus();
   const [url, setUrl] = useState("");
   const [anon, setAnon] = useState("");
@@ -48,44 +51,46 @@ export function SyncSettings() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Bring your own Supabase project. Keel stays local-first: this browser keeps working offline, and every change is merged with your other devices when they are online. Last write wins; deletes travel too.
+        {t("Bring your own Supabase project. Keel stays local-first: this browser keeps working offline, and every change is merged with your other devices when they are online. Last write wins; deletes travel too.")}
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor="sb-url">Supabase URL</Label>
-          <Input id="sb-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" autoComplete="off" />
+          <Label htmlFor="sb-url">{t("Supabase URL")}</Label>
+          <Input id="sb-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" autoComplete="off" dir="ltr" />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="sb-anon">Anon key</Label>
-          <Input id="sb-anon" type="password" value={anon} onChange={(e) => setAnon(e.target.value)} placeholder="eyJ…" autoComplete="off" />
+          <Label htmlFor="sb-anon">{t("Anon key")}</Label>
+          <Input id="sb-anon" type="password" value={anon} onChange={(e) => setAnon(e.target.value)} placeholder="eyJ…" autoComplete="off" dir="ltr" />
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => run("Sync configured", async () => saveSyncConfig(url, anon))} disabled={!url.trim() || !anon.trim() || busy}>
-          Save
+        <Button size="sm" onClick={() => run(t("Sync configured"), async () => saveSyncConfig(url, anon))} disabled={!url.trim() || !anon.trim() || busy}>
+          {t("Save")}
         </Button>
         {s.configured ? (
-          <Button size="sm" variant="ghost" onClick={() => run("Sync removed", async () => clearSyncConfig())}>
-            <CloudOff /> Remove
+          <Button size="sm" variant="ghost" onClick={() => run(t("Sync removed"), async () => clearSyncConfig())}>
+            <CloudOff /> {t("Remove")}
           </Button>
         ) : null}
-        <span className="text-xs text-muted-foreground">Stored in this browser only. The anon key is public by design; row-level security protects your rows.</span>
+        <span className="text-xs text-muted-foreground">{t("Stored in this browser only. The anon key is public by design; row-level security protects your rows.")}</span>
       </div>
 
       <details className="rounded-md border bg-muted/30 p-3 text-xs">
-        <summary className="cursor-pointer font-medium">One-time setup in Supabase</summary>
-        <pre className="mt-2 whitespace-pre-wrap font-mono text-[11px] leading-relaxed">{SQL_HINT}</pre>
+        <summary className="cursor-pointer font-medium">{t("One-time setup in Supabase")}</summary>
+        <pre className="mt-2 whitespace-pre-wrap font-mono text-[11px] leading-relaxed" dir="ltr">
+          {sqlHint(mounted ? location.origin : "https://your-app")}
+        </pre>
         <Button
           size="xs"
           variant="outline"
           className="mt-2"
           onClick={() => {
             void navigator.clipboard.writeText("https://github.com/ElAmir-Mansour/keel/blob/main/supabase/schema.sql");
-            toast.success("Link to schema.sql copied");
+            toast.success(t("Link to schema.sql copied"));
           }}
         >
-          <Copy /> Copy link to schema.sql
+          <Copy /> {t("Copy link to schema.sql")}
         </Button>
       </details>
 
@@ -94,41 +99,41 @@ export function SyncSettings() {
           {s.signedIn ? (
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="secondary">Signed in</Badge>
-                <span>{s.email}</span>
+                <Badge variant="secondary">{t("Signed in")}</Badge>
+                <span dir="ltr">{s.email}</span>
                 <span className="text-xs text-muted-foreground">
-                  {s.lastSyncAt ? `Last sync ${ago(s.lastSyncAt)}` : "Not synced yet"}
-                  {s.lastResult ? ` · pushed ${s.lastResult.pushed}, pulled ${s.lastResult.pulled}` : ""}
-                  {s.pending ? ` · ${s.pending} waiting` : ""}
+                  {s.lastSyncAt ? t("Last sync {when}", { when: ago(s.lastSyncAt) }) : t("Not synced yet")}
+                  {s.lastResult ? ` · ${t("pushed {pushed}, pulled {pulled}", { pushed: s.lastResult.pushed, pulled: s.lastResult.pulled })}` : ""}
+                  {s.pending ? ` · ${t("{n} waiting", { n: s.pending })}` : ""}
                 </span>
               </div>
               {s.lastError ? <p className="text-sm text-[var(--viz-critical)]">{s.lastError}</p> : null}
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" onClick={() => run("Synced", () => syncNow())} disabled={busy || s.running}>
-                  <RefreshCw className={s.running ? "animate-spin" : ""} /> Sync now
+                <Button size="sm" onClick={() => run(t("Synced"), () => syncNow())} disabled={busy || s.running}>
+                  <RefreshCw className={s.running ? "animate-spin" : ""} /> {t("Sync now")}
                 </Button>
                 <label className="inline-flex items-center gap-2 text-sm">
-                  <Switch checked={s.auto} onCheckedChange={setAutoSync} /> Sync automatically
+                  <Switch checked={s.auto} onCheckedChange={setAutoSync} /> {t("Sync automatically")}
                 </label>
-                <Button size="sm" variant="ghost" onClick={() => run("Signed out", () => signOut())}>
-                  Sign out
+                <Button size="sm" variant="ghost" onClick={() => run(t("Signed out"), () => signOut())}>
+                  {t("Sign out")}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => run("Next sync will merge everything", () => forgetCursors())}>
-                  Full re-sync
+                <Button size="sm" variant="ghost" onClick={() => run(t("Next sync will merge everything"), () => forgetCursors())}>
+                  {t("Full re-sync")}
                 </Button>
                 <Button size="sm" variant="destructive" onClick={() => setConfirmWipe(true)}>
-                  Delete cloud copy
+                  {t("Delete cloud copy")}
                 </Button>
               </div>
             </>
           ) : (
             <div className="flex flex-wrap items-end gap-2">
               <div className="grid gap-1.5">
-                <Label htmlFor="sb-email">Email for a magic link</Label>
-                <Input id="sb-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-64" />
+                <Label htmlFor="sb-email">{t("Email for a magic link")}</Label>
+                <Input id="sb-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-64" dir="ltr" />
               </div>
-              <Button size="sm" onClick={() => run("Check your inbox for the sign-in link", () => signInWithEmail(email))} disabled={!email.includes("@") || busy}>
-                Send link
+              <Button size="sm" onClick={() => run(t("Check your inbox for the sign-in link"), () => signInWithEmail(email))} disabled={!email.includes("@") || busy}>
+                {t("Send link")}
               </Button>
             </div>
           )}
@@ -138,11 +143,11 @@ export function SyncSettings() {
       <ConfirmDialog
         open={confirmWipe}
         onOpenChange={setConfirmWipe}
-        title="Delete the cloud copy?"
-        description="Removes everything Keel stored in your Supabase project. This browser keeps its data and will push it again on the next sync."
-        confirmLabel="Delete cloud copy"
+        title={t("Delete the cloud copy?")}
+        description={t("Removes everything Keel stored in your Supabase project. This browser keeps its data and will push it again on the next sync.")}
+        confirmLabel={t("Delete cloud copy")}
         destructive
-        onConfirm={() => run("Cloud copy deleted", () => wipeRemote())}
+        onConfirm={() => run(t("Cloud copy deleted"), () => wipeRemote())}
       />
     </div>
   );

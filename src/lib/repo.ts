@@ -352,12 +352,48 @@ export async function createNote(
   return n;
 }
 
+/** Keep a version when the text changes, at most one per five minutes, fifty per note. */
+const VERSION_GAP_MS = 5 * 60 * 1000;
+const VERSIONS_KEPT = 50;
+
 export async function updateNote(nid: string, patch: Partial<Note>) {
-  await db.notes.update(nid, { ...patch, updatedAt: nowISO() });
+  await db.transaction("rw", [db.notes, db.noteVersions, db.deletions], async () => {
+    const before = await db.notes.get(nid);
+    const now = nowISO();
+    if (before && ((patch.body !== undefined && patch.body !== before.body) || (patch.title !== undefined && patch.title !== before.title))) {
+      const last = await db.noteVersions.where({ noteId: nid }).reverse().sortBy("savedAt");
+      const recent = last[0];
+      if (!recent || Date.parse(now) - Date.parse(recent.savedAt) > VERSION_GAP_MS) {
+        await db.noteVersions.add({ id: id(), noteId: nid, title: before.title, body: before.body, savedAt: now, updatedAt: now });
+        const extra = last.slice(VERSIONS_KEPT - 1);
+        if (extra.length) {
+          await tombstone("noteVersions", extra.map((v) => v.id));
+          await db.noteVersions.bulkDelete(extra.map((v) => v.id));
+        }
+      }
+    }
+    await db.notes.update(nid, { ...patch, updatedAt: now });
+  });
+}
+
+/** Put an old version back; the current text is kept as a version first. */
+export async function restoreNoteVersion(vid: string) {
+  const v = await db.noteVersions.get(vid);
+  if (!v) return;
+  await db.transaction("rw", [db.notes, db.noteVersions, db.deletions], async () => {
+    const cur = await db.notes.get(v.noteId);
+    if (!cur) return;
+    const now = nowISO();
+    await db.noteVersions.add({ id: id(), noteId: v.noteId, title: cur.title, body: cur.body, savedAt: now, updatedAt: now });
+    await db.notes.update(v.noteId, { title: v.title, body: v.body, updatedAt: now });
+  });
 }
 
 export async function deleteNote(nid: string) {
-  await db.transaction("rw", [db.notes, db.deletions], async () => {
+  await db.transaction("rw", [db.notes, db.noteVersions, db.deletions], async () => {
+    const versions = (await db.noteVersions.where({ noteId: nid }).primaryKeys()) as string[];
+    await tombstone("noteVersions", versions);
+    await db.noteVersions.where({ noteId: nid }).delete();
     await tombstone("notes", [nid]);
     await db.notes.delete(nid);
   });

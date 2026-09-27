@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { KindBadge, ProjectChip } from "@/components/ui-bits";
 import { ago, fmtShort } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { NOTE_KINDS, type Note, type Project } from "@/lib/types";
 
 export type NoteSort = "updated" | "created" | "title" | "date";
@@ -95,6 +96,7 @@ export function NoteList({
   className?: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const rows = useMemo(() => filterAndSortNotes(notes, filters), [notes, filters]);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const [cursor, setCursor] = useState(-1);
@@ -146,33 +148,33 @@ export function NoteList({
             onKeyDown={(e) => {
               if (e.key === "Escape") e.currentTarget.blur();
             }}
-            placeholder="Search titles, text and tags"
-            aria-label="Search notes"
+            placeholder={t("Search titles, text and tags")}
+            aria-label={t("Search notes")}
             className="h-8 ps-8"
           />
         </div>
         <Select value={filters.kind || "__all"} onValueChange={(v) => onFiltersChange({ kind: v === "__all" ? "" : v })}>
-          <SelectTrigger size="sm" className="w-auto" aria-label="Kind">
+          <SelectTrigger size="sm" className="w-auto" aria-label={t("Kind")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all">All kinds</SelectItem>
+            <SelectItem value="__all">{t("All kinds")}</SelectItem>
             {NOTE_KINDS.map((k) => (
               <SelectItem key={k.value} value={k.value}>
-                {k.label}
+                {t(k.label)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(v) => onFiltersChange({ sort: v === "updated" ? "" : v })}>
-          <SelectTrigger size="sm" className="w-auto" aria-label="Sort">
+          <SelectTrigger size="sm" className="w-auto" aria-label={t("Sort")}>
             <ArrowUpDown className="size-3.5 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {SORTS.map((s) => (
               <SelectItem key={s.value} value={s.value}>
-                {s.label}
+                {t(s.label)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -189,7 +191,7 @@ export function NoteList({
           ))}
         </ul>
       ) : rows.length === 0 ? (
-        emptyState ?? <p className="py-10 text-center text-sm text-muted-foreground">No notes match.</p>
+        emptyState ?? <p className="py-10 text-center text-sm text-muted-foreground">{t("No notes match.")}</p>
       ) : (
         <>
           <ul ref={listRef} className="divide-y rounded-lg border bg-card" role="list">
@@ -205,7 +207,7 @@ export function NoteList({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-2">
-                        {n.pinned ? <Pin className="size-3 shrink-0 text-muted-foreground" aria-label="Pinned" /> : null}
+                        {n.pinned ? <Pin className="size-3 shrink-0 text-muted-foreground" aria-label={t("Pinned")} /> : null}
                         <span className="truncate text-sm font-medium" dir="auto">
                           {n.title}
                         </span>
@@ -220,7 +222,7 @@ export function NoteList({
                         <span className="truncate">{n.folder}</span>
                         {project ? <ProjectChip project={project} link={false} className="text-[11px]" /> : null}
                         <span className="tabular">{fmtShort(n.date)}</span>
-                        {n.tags.length ? <span className="truncate">{n.tags.map((t) => `#${t}`).join(" ")}</span> : null}
+                        {n.tags.length ? <span className="truncate">{n.tags.map((tag) => `#${tag}`).join(" ")}</span> : null}
                       </div>
                     </div>
                     <span className="shrink-0 pt-0.5 text-xs text-muted-foreground tabular" title={n.updatedAt}>
@@ -232,7 +234,7 @@ export function NoteList({
             })}
           </ul>
           <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground max-md:hidden">
-            {rows.length} {rows.length === 1 ? "note" : "notes"} · <Kbd>J</Kbd> <Kbd>K</Kbd> to move, <Kbd>↵</Kbd> to open
+            {rows.length === 1 ? t("1 note") : t("{n} notes", { n: rows.length })} · <Kbd>J</Kbd> <Kbd>K</Kbd> {t("to move,")} <Kbd>↵</Kbd> {t("to open")}
           </p>
         </>
       )}

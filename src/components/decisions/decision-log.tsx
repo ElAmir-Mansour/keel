@@ -12,6 +12,7 @@ import { EmptyState, PageHeader, ProjectChip, ProjectDot } from "@/components/ui
 import { useProjects } from "@/hooks/use-data";
 import { db } from "@/lib/db";
 import { fmtDate } from "@/lib/dates";
+import { useT } from "@/lib/i18n";
 import { DECISION_STATUSES } from "@/lib/types";
 import { useUi } from "@/lib/ui-store";
 import { useUrlFilters } from "@/components/notes/use-url-filters";
@@ -23,6 +24,7 @@ const KEYS = ["status", "project"] as const;
 export function DecisionLog() {
   const router = useRouter();
   const { openQuickCreate } = useUi();
+  const t = useT();
   const decisions = useLiveQuery(() => db.decisions.orderBy("seq").reverse().toArray(), [], null);
   const projects = useProjects();
   const [f, setF] = useUrlFilters(KEYS);
@@ -35,17 +37,17 @@ export function DecisionLog() {
 
   const actions = (
     <Button size="sm" onClick={() => openQuickCreate("decision")}>
-      <Plus /> New decision
+      <Plus /> {t("New decision")}
     </Button>
   );
 
   if (decisions && decisions.length === 0) {
     return (
       <>
-        <PageHeader title="Decisions" description="Architecture decision records: context, decision, consequences. Numbered once, never renumbered." actions={actions} />
-        <EmptyState icon={<Scale />} title="No decisions recorded" description="Write the first ADR when you next choose between two ways of doing something. Notes can cite it as [[ADR-1]] and it will list where it is mentioned.">
+        <PageHeader title={t("Decisions")} description={t("Architecture decision records: context, decision, consequences. Numbered once, never renumbered.")} actions={actions} />
+        <EmptyState icon={<Scale />} title={t("No decisions recorded")} description={t("Write the first ADR when you next choose between two ways of doing something. Notes can cite it as [[ADR-1]] and it will list where it is mentioned.")}>
           <Button size="sm" onClick={() => openQuickCreate("decision")}>
-            <Plus /> New decision
+            <Plus /> {t("New decision")}
           </Button>
         </EmptyState>
       </>
@@ -54,28 +56,28 @@ export function DecisionLog() {
 
   return (
     <>
-      <PageHeader title="Decisions" description="Architecture decision records: context, decision, consequences. Numbered once, never renumbered." actions={actions}>
+      <PageHeader title={t("Decisions")} description={t("Architecture decision records: context, decision, consequences. Numbered once, never renumbered.")} actions={actions}>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={f.status || "__all"} onValueChange={(v) => setF({ status: v === "__all" ? "" : v })}>
-            <SelectTrigger size="sm" className="w-auto" aria-label="Status">
+            <SelectTrigger size="sm" className="w-auto" aria-label={t("Status")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all">All statuses</SelectItem>
+              <SelectItem value="__all">{t("All statuses")}</SelectItem>
               {DECISION_STATUSES.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
-                  <DecisionStatusIcon status={s.value} /> {s.label}
+                  <DecisionStatusIcon status={s.value} /> {t(s.label)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={f.project || "__all"} onValueChange={(v) => setF({ project: v === "__all" ? "" : v })}>
-            <SelectTrigger size="sm" className="w-auto" aria-label="Project">
+            <SelectTrigger size="sm" className="w-auto" aria-label={t("Project")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all">All projects</SelectItem>
-              <SelectItem value="__none">No project</SelectItem>
+              <SelectItem value="__all">{t("All projects")}</SelectItem>
+              <SelectItem value="__none">{t("No project")}</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   <ProjectDot project={p} /> {p.name}
@@ -85,11 +87,11 @@ export function DecisionLog() {
           </Select>
           {f.status || f.project ? (
             <Button variant="ghost" size="sm" onClick={() => setF({ status: "", project: "" })}>
-              Clear
+              {t("Clear")}
             </Button>
           ) : null}
           <span className="ms-auto text-xs text-muted-foreground tabular">
-            {rows.length} of {decisions?.length ?? 0}
+            {t("{shown} of {total}", { shown: rows.length, total: decisions?.length ?? 0 })}
           </span>
         </div>
       </PageHeader>
@@ -99,11 +101,11 @@ export function DecisionLog() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-20">ADR</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead className="w-32">Status</TableHead>
-              <TableHead className="w-40 max-md:hidden">Project</TableHead>
-              <TableHead className="w-28 max-sm:hidden">Date</TableHead>
-              <TableHead className="max-lg:hidden">Tags</TableHead>
+              <TableHead>{t("Title")}</TableHead>
+              <TableHead className="w-32">{t("Status")}</TableHead>
+              <TableHead className="w-40 max-md:hidden">{t("Project")}</TableHead>
+              <TableHead className="w-28 max-sm:hidden">{t("Date")}</TableHead>
+              <TableHead className="max-lg:hidden">{t("Tags")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -131,7 +133,7 @@ export function DecisionLog() {
                       <TableCell className="max-md:hidden">{project ? <ProjectChip project={project} /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
                       <TableCell className="text-xs text-muted-foreground tabular max-sm:hidden">{fmtDate(d.date)}</TableCell>
                       <TableCell className="max-w-0 truncate text-xs text-muted-foreground max-lg:hidden" dir="auto">
-                        {d.tags.map((t) => `#${t}`).join(" ")}
+                        {d.tags.map((tag) => `#${tag}`).join(" ")}
                       </TableCell>
                     </TableRow>
                   );
@@ -139,7 +141,7 @@ export function DecisionLog() {
             {decisions && rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                  No decisions match these filters.
+                  {t("No decisions match these filters.")}
                 </TableCell>
               </TableRow>
             ) : null}
