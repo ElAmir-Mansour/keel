@@ -1,0 +1,665 @@
+"use client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { nanoid } from "nanoid";
+import { toast } from "sonner";
+import {
+  AlignLeft,
+  ArrowUp,
+  CalendarClock,
+  FileText,
+  FolderKanban,
+  ListChecks,
+  Loader2,
+  MessageSquare,
+  MessageSquarePlus,
+  PenLine,
+  Search,
+  Sparkles,
+  Square,
+  SquarePen,
+  X,
+} from "lucide-react";
+import { db } from "@/lib/db";
+import { updateNote } from "@/lib/repo";
+import { useUi, type AiRequest } from "@/lib/ui-store";
+import { cn } from "@/lib/utils";
+import { AiError, streamChat, useAiModel } from "@/lib/ai/client";
+import {
+  CONTEXT_BUDGET,
+  fitBudget,
+  noteContext,
+  projectContext,
+  vaultRetrieval,
+  workspaceOverview,
+} from "@/lib/ai/context";
+import { modelLabel, type AiChatMessage, type AiErrorCode } from "@/lib/ai/models";
+import { ACTION_LABELS, ACTION_PROMPTS, buildSystem, type AiAction } from "@/lib/ai/prompts";
+import { MarkdownView } from "@/components/markdown";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CopyButton, TasksProposal, WeeklyPost, unfence } from "@/components/ai/ai-results";
+
+// The assistant panel. Conversation state lives here, in memory only, so it
+// survives closing the sheet and dies with the tab. Nothing is sent until the
+// user presses send or picks an action, and the context that would go along
+// is listed (and sized) above the transcript.
+
+interface Attach {
+  noteId?: string;
+  projectId?: string;
+}
+
+interface ContextInfo {
+  text: string;
+  parts: { label: string; chars: number }[];
+}
+
+type MsgStatus = "streaming" | "done" | "stopped" | "error";
+
+interface Msg {
+  id: string;
+  role: "user" | "assistant";
+  /** What the transcript shows. */
+  content: string;
+  /** What actually went to the model (prompt plus vault excerpts); defaults to content. */
+  sent?: string;
+  action: AiAction;
+  /** Snapshot of the attachments when the turn ran, so result actions target the right records. */
+  noteId?: string;
+  projectId?: string;
+  status: MsgStatus;
+  error?: { code: AiErrorCode; message: string };
+  excerptChars?: number;
+}
+
+interface PendingAction {
+  seq: number;
+  action: AiAction;
+  ids: Attach;
+}
+
+const RESERVED_FOR_EXCERPTS = 6_000;
+const SUGGESTIONS = ["What is in progress right now?", "Which risks need attention?", "What did we decide recently?"];
+
+async function buildContext(ids: Attach): Promise<ContextInfo> {
+  const [overview, note, project] = await Promise.all([
+    workspaceOverview(),
+    ids.noteId ? noteContext(ids.noteId) : null,
+    ids.projectId ? projectContext(ids.projectId) : null,
+  ]);
+  const parts = [
+    { label: "Workspace overview", text: overview },
+    note ? { label: "Note", text: note } : null,
+    project ? { label: "Project activity", text: project } : null,
+  ].filter((p): p is { label: string; text: string } => p !== null);
+  return {
+    text: fitBudget(
+      parts.map((p) => p.text),
+      CONTEXT_BUDGET - RESERVED_FOR_EXCERPTS,
+    ),
+    parts: parts.map((p) => ({ label: p.label, chars: p.text.length })),
+  };
+}
+
+function fmtChars(n: number) {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+export function AiPanel() {
+  const { ai, closeAI } = useUi();
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [attach, setAttach] = useState<Attach>({});
+  const [searchVault, setSearchVault] = useState(true);
+  const [draft, setDraft] = useState("");
+  const [ctx, setCtx] = useState<ContextInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [seenRequest, setSeenRequest] = useState<AiRequest | null | undefined>(undefined);
+  const [pending, setPending] = useState<PendingAction | null>(null);
+
+  const abortRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef(messages);
+  const searchRef = useRef(searchVault);
+  useEffect(() => {
+    messagesRef.current = messages;
+    searchRef.current = searchVault;
+  });
+
+  // Apply a new request while rendering (React's "adjust state from props"
+  // pattern): attachments named by the request replace the current ones, a
+  // prompt prefills the composer, and a named action is queued for the effect.
+  if (ai.open && ai.request !== seenRequest) {
+    setSeenRequest(ai.request);
+    const req = ai.request;
+    if (req) {
+      const ids = req.noteId || req.projectId ? { noteId: req.noteId, projectId: req.projectId } : attach;
+      if (ids !== attach) setAttach(ids);
+      if (req.prompt) setDraft(req.prompt);
+      if (req.action && req.action !== "ask") setPending({ seq: (pending?.seq ?? 0) + 1, action: req.action, ids });
+    }
+  }
+
+  const run = useCallback(async (action: AiAction, prompt: string, ids: Attach) => {
+    if (abortRef.current) return;
+    if (action !== "ask" && action !== "weekly" && !ids.noteId) {
+      toast.error("Attach a note first");
+      return;
+    }
+    if (action === "weekly" && !ids.projectId) {
+      toast.error("Attach a project first");
+      return;
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+
+    const userId = nanoid(8);
+    const asstId = nanoid(8);
+    const history: AiChatMessage[] = messagesRef.current
+      .filter((m) => (m.status === "done" || m.status === "stopped") && (m.sent ?? m.content).trim())
+      .map((m) => ({ role: m.role, content: m.sent ?? m.content }));
+    setMessages((prev) => [
+      ...prev,
+      { id: userId, role: "user", content: action === "ask" ? prompt : ACTION_LABELS[action], action, status: "done" },
+      { id: asstId, role: "assistant", content: "", action, noteId: ids.noteId, projectId: ids.projectId, status: "streaming" },
+    ]);
+    const patch = (id: string, p: Partial<Msg>) =>
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...p } : m)));
+
+    // Deltas are batched per animation-ish tick so react-markdown is not
+    // re-parsed for every token.
+    let buffer = "";
+    let timer: number | null = null;
+    const flush = () => {
+      timer = null;
+      if (!buffer) return;
+      const chunk = buffer;
+      buffer = "";
+      setMessages((prev) => prev.map((m) => (m.id === asstId ? { ...m, content: m.content + chunk } : m)));
+    };
+    const onDelta = (t: string) => {
+      buffer += t;
+      if (timer === null) timer = window.setTimeout(flush, 40);
+    };
+    const flushNow = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      flush();
+    };
+
+    try {
+      const c = await buildContext(ids);
+      setCtx(c);
+      let sent = action === "ask" ? prompt : ACTION_PROMPTS[action];
+      if (action === "ask" && searchRef.current) {
+        const excerpts = await vaultRetrieval(prompt);
+        if (excerpts) {
+          sent = `${excerpts}\n\n---\n\nQuestion: ${prompt}`;
+          patch(userId, { excerptChars: excerpts.length });
+        }
+      }
+      patch(userId, { sent });
+      if (controller.signal.aborted) throw new AiError("aborted", "Stopped.");
+      await streamChat(
+        {
+          system: buildSystem(c.text),
+          messages: [...history, { role: "user", content: sent }],
+          json: action === "tasks",
+          signal: controller.signal,
+        },
+        onDelta,
+      );
+      flushNow();
+      patch(asstId, { status: "done" });
+    } catch (err) {
+      flushNow();
+      const e = err instanceof AiError ? err : new AiError("server_error", "Something went wrong.");
+      if (e.code === "aborted") patch(asstId, { status: "stopped" });
+      else patch(asstId, { status: "error", error: { code: e.code, message: e.message } });
+    } finally {
+      abortRef.current = null;
+      setBusy(false);
+    }
+  }, []);
+
+  // Kick off a queued action once the request has been applied. Deferred a
+  // tick so the effect starts a job rather than re-rendering synchronously,
+  // and so StrictMode's double invoke cannot start it twice.
+  useEffect(() => {
+    if (!pending) return;
+    const t = window.setTimeout(() => void run(pending.action, "", pending.ids), 0);
+    return () => window.clearTimeout(t);
+  }, [pending, run]);
+
+  useEffect(() => {
+    if (!ai.open) return;
+    let alive = true;
+    void buildContext(attach).then((c) => {
+      if (alive) setCtx(c);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ai.open, attach]);
+
+  const stop = () => abortRef.current?.abort();
+
+  function newChat() {
+    stop();
+    setMessages([]);
+  }
+
+  function retry(asstId: string) {
+    const list = messagesRef.current;
+    const i = list.findIndex((m) => m.id === asstId);
+    const user = i > 0 ? list[i - 1] : undefined;
+    const asst = list[i];
+    if (!user || user.role !== "user") return;
+    setMessages(list.filter((_, j) => j !== i && j !== i - 1));
+    void run(user.action, user.content, { noteId: asst.noteId, projectId: asst.projectId });
+  }
+
+  return (
+    <Sheet
+      open={ai.open}
+      onOpenChange={(open) => {
+        if (!open) closeAI();
+      }}
+    >
+      <SheetContent side="right" className="w-full gap-0 p-0 data-[side=right]:sm:max-w-xl">
+        {ai.open ? (
+          <PanelBody
+            messages={messages}
+            attach={attach}
+            setAttach={setAttach}
+            searchVault={searchVault}
+            setSearchVault={setSearchVault}
+            draft={draft}
+            setDraft={setDraft}
+            ctx={ctx}
+            busy={busy}
+            run={run}
+            stop={stop}
+            retry={retry}
+            newChat={newChat}
+          />
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ----- body (mounted only while open) -------------------------------------------
+
+interface PanelBodyProps {
+  messages: Msg[];
+  attach: Attach;
+  setAttach: (a: Attach) => void;
+  searchVault: boolean;
+  setSearchVault: (v: boolean) => void;
+  draft: string;
+  setDraft: (v: string) => void;
+  ctx: ContextInfo | null;
+  busy: boolean;
+  run: (action: AiAction, prompt: string, ids: Attach) => Promise<void>;
+  stop: () => void;
+  retry: (asstId: string) => void;
+  newChat: () => void;
+}
+
+function PanelBody(p: PanelBodyProps) {
+  const { messages, attach, setAttach, searchVault, setSearchVault, draft, setDraft, ctx, busy, run, stop, retry, newChat } = p;
+  const model = useAiModel();
+  const note = useLiveQuery(() => (attach.noteId ? db.notes.get(attach.noteId) : undefined), [attach.noteId]);
+  const project = useLiveQuery(() => (attach.projectId ? db.projects.get(attach.projectId) : undefined), [attach.projectId]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+
+  // Follow the stream unless the user scrolled up to read something.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  function onScroll() {
+    const el = scrollRef.current;
+    if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  }
+
+  function submit() {
+    const text = draft.trim();
+    if (!text || busy) return;
+    setDraft("");
+    stickRef.current = true;
+    void run("ask", text, attach);
+  }
+
+  function runAction(action: AiAction) {
+    stickRef.current = true;
+    void run(action, "", attach);
+  }
+
+  const totalChars = (ctx?.parts.reduce((n, x) => n + x.chars, 0) ?? 0);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <SheetHeader className="gap-2 border-b pe-12">
+        <div className="flex flex-wrap items-center gap-2">
+          <Sparkles className="size-4 text-muted-foreground" />
+          <SheetTitle>Assistant</SheetTitle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="font-normal">
+                {modelLabel(model)}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>Change the model in Settings</TooltipContent>
+          </Tooltip>
+          <Button variant="ghost" size="xs" className="ms-auto" onClick={newChat} disabled={!messages.length}>
+            <MessageSquarePlus /> New chat
+          </Button>
+        </div>
+        <SheetDescription className="sr-only">
+          Reads your vault and answers from it. Only the context listed here is sent, and only when you press send.
+        </SheetDescription>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-muted-foreground">Context:</span>
+          {note ? (
+            <ContextChip icon={<FileText />} label={note.title} onRemove={() => setAttach({ ...attach, noteId: undefined })} />
+          ) : null}
+          {project ? (
+            <ContextChip
+              icon={<FolderKanban />}
+              label={project.name}
+              onRemove={() => setAttach({ ...attach, projectId: undefined })}
+            />
+          ) : null}
+          {searchVault ? <ContextChip icon={<Search />} label="vault search" onRemove={() => setSearchVault(false)} /> : null}
+          {!note && !project && !searchVault ? <span className="text-muted-foreground">workspace overview only</span> : null}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="ms-auto tabular-nums text-muted-foreground">{fmtChars(totalChars)} chars</span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64">
+              <p className="mb-1 font-medium">Sent with your next message</p>
+              <ul className="space-y-0.5">
+                {ctx?.parts.map((x) => (
+                  <li key={x.label} className="flex justify-between gap-3">
+                    <span>{x.label}</span>
+                    <span className="tabular-nums">{fmtChars(x.chars)}</span>
+                  </li>
+                ))}
+                {searchVault ? (
+                  <li className="flex justify-between gap-3">
+                    <span>Vault excerpts</span>
+                    <span>up to {fmtChars(RESERVED_FOR_EXCERPTS)}</span>
+                  </li>
+                ) : null}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </SheetHeader>
+
+      <div className="flex flex-wrap items-center gap-1.5 border-b px-4 py-2">
+        {note ? (
+          <>
+            <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("summarize")}>
+              <AlignLeft /> Summarize
+            </Button>
+            <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("improve")}>
+              <PenLine /> Improve writing
+            </Button>
+            <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("tasks")}>
+              <ListChecks /> Extract tasks
+            </Button>
+          </>
+        ) : null}
+        {project ? (
+          <Button variant="outline" size="xs" disabled={busy} onClick={() => runAction("weekly")}>
+            <CalendarClock /> Draft weekly update
+          </Button>
+        ) : null}
+        <Button
+          variant="outline"
+          size="xs"
+          disabled={busy}
+          onClick={() => {
+            if (draft.trim()) submit();
+            else textareaRef.current?.focus();
+          }}
+        >
+          <MessageSquare /> Ask
+        </Button>
+      </div>
+
+      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        {messages.length ? (
+          <div className="space-y-4">
+            {messages.map((m) =>
+              m.role === "user" ? (
+                <UserMessage key={m.id} m={m} />
+              ) : (
+                <AssistantMessage key={m.id} m={m} onRetry={() => retry(m.id)} />
+              ),
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3 py-6 text-sm text-muted-foreground">
+            <p>
+              Ask about anything in your vault — notes, issues, decisions, risks. Attach a note or a project from its
+              page for the one-click actions.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {SUGGESTIONS.map((s) => (
+                <Button
+                  key={s}
+                  variant="outline"
+                  size="xs"
+                  onClick={() => {
+                    setDraft(s);
+                    textareaRef.current?.focus();
+                  }}
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs">Nothing is sent until you press send. Only the context listed above goes to Anthropic.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2 border-t p-3">
+        <Textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          dir="auto"
+          rows={1}
+          autoFocus
+          placeholder="Ask about your vault… Enter to send, Shift+Enter for a new line"
+          className="max-h-40 min-h-10 resize-none text-sm"
+        />
+        <div className="flex items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+            <Switch size="sm" checked={searchVault} onCheckedChange={setSearchVault} />
+            Search vault
+          </label>
+          <div className="ms-auto flex items-center gap-2">
+            {busy ? (
+              <Button size="sm" variant="outline" onClick={stop}>
+                <Square /> Stop
+              </Button>
+            ) : (
+              <Button size="sm" disabled={!draft.trim()} onClick={submit}>
+                <ArrowUp /> Send
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContextChip({ icon, label, onRemove }: { icon: React.ReactNode; label: string; onRemove: () => void }) {
+  return (
+    <Badge variant="secondary" className="max-w-56 gap-1 pe-1 font-normal">
+      {icon}
+      <span className="truncate" dir="auto">
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${label}`}
+        className="ms-0.5 rounded-full p-0.5 hover:bg-foreground/10"
+      >
+        <X className="size-3" />
+      </button>
+    </Badge>
+  );
+}
+
+function UserMessage({ m }: { m: Msg }) {
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-sm whitespace-pre-wrap text-primary-foreground" dir="auto">
+        {m.content}
+      </div>
+      {m.excerptChars ? (
+        <span className="text-[11px] text-muted-foreground">+ {fmtChars(m.excerptChars)} chars of vault excerpts</span>
+      ) : null}
+    </div>
+  );
+}
+
+function AssistantMessage({ m, onRetry }: { m: Msg; onRetry: () => void }) {
+  const streaming = m.status === "streaming";
+  let body: React.ReactNode = null;
+  if (m.action === "tasks") {
+    body = streaming ? (
+      <Thinking label="Extracting tasks…" />
+    ) : m.content ? (
+      <TasksProposal raw={m.content} noteId={m.noteId} projectId={m.projectId} />
+    ) : null;
+  } else if (m.content) {
+    body = <MarkdownView body={m.content} className="text-sm" />;
+  } else if (streaming) {
+    body = <Thinking label="Thinking…" />;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <Sparkles className="size-3" /> Assistant
+        {m.status === "stopped" ? <span>· stopped</span> : null}
+      </div>
+      {body}
+      {streaming && m.content && m.action !== "tasks" ? (
+        <span className="inline-block h-4 w-1.5 animate-pulse bg-foreground/60 align-middle" aria-hidden />
+      ) : null}
+      {m.error ? <ErrorNote error={m.error} onRetry={onRetry} /> : null}
+      {m.status === "done" && m.content ? <ResultActions m={m} /> : null}
+    </div>
+  );
+}
+
+function Thinking({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+      <Loader2 className="size-3.5 animate-spin" /> {label}
+    </span>
+  );
+}
+
+function ErrorNote({ error, onRetry }: { error: NonNullable<Msg["error"]>; onRetry: () => void }) {
+  const { closeAI } = useUi();
+  const needsKey = error.code === "no_api_key" || error.code === "bad_key";
+  return (
+    <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
+      <p>{error.message}</p>
+      <div className="mt-1.5 flex gap-2">
+        {needsKey ? (
+          <Button asChild size="xs" variant="outline">
+            <Link href="/settings" onClick={closeAI}>
+              Open Settings
+            </Link>
+          </Button>
+        ) : (
+          <Button size="xs" variant="outline" onClick={onRetry}>
+            Retry
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResultActions({ m }: { m: Msg }) {
+  const router = useRouter();
+  const note = useLiveQuery(() => (m.noteId ? db.notes.get(m.noteId) : undefined), [m.noteId]);
+  const text = unfence(m.content);
+
+  async function replaceBody() {
+    if (!note) return;
+    const previous = note.body;
+    await updateNote(note.id, { body: text });
+    toast.success("Note body replaced", {
+      action: { label: "Undo", onClick: () => void updateNote(note.id, { body: previous }) },
+    });
+  }
+
+  async function insertAtTop() {
+    if (!note) return;
+    const previous = note.body;
+    await updateNote(note.id, { body: `${text}\n\n${previous}`.trim() });
+    toast.success("Summary inserted at the top of the note", {
+      action: { label: "Open note", onClick: () => router.push(`/notes/${note.id}`) },
+    });
+  }
+
+  switch (m.action) {
+    case "improve":
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="xs" disabled={!note} onClick={replaceBody}>
+            <SquarePen /> Replace note body
+          </Button>
+          <CopyButton text={text} />
+        </div>
+      );
+    case "summarize":
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="xs" disabled={!note} onClick={insertAtTop}>
+            <AlignLeft /> Insert at top of note
+          </Button>
+          <CopyButton text={text} />
+        </div>
+      );
+    case "weekly":
+      return <WeeklyPost markdown={m.content} projectId={m.projectId} />;
+    case "tasks":
+      return null;
+    default:
+      return (
+        <div className={cn("flex flex-wrap items-center gap-2")}>
+          <CopyButton text={text} />
+        </div>
+      );
+  }
+}
