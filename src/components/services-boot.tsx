@@ -8,6 +8,7 @@ import { boot as bootSync, useSyncStatus } from "@/lib/sync/service";
 import { boot as bootBackup, shouldNudge } from "@/lib/backup/service";
 import { bootDigest, maybeRunDigest } from "@/lib/ai/digest";
 import { bootSemantic } from "@/lib/ai/semantic";
+import { bootGithub } from "@/lib/github/service";
 
 /** Starts the background services once per page load and nudges about data safety. */
 export function ServicesBoot() {
@@ -20,6 +21,7 @@ export function ServicesBoot() {
     void bootBackup();
     bootDigest();
     bootSemantic();
+    bootGithub();
     const t = setTimeout(() => {
       void maybeRunDigest().then((n) => {
         if (n) toast.success("This week's digest is ready", { action: { label: "Open", onClick: () => router.push(`/notes/${n.id}`) }, duration: 15000 });

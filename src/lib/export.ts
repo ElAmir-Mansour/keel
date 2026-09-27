@@ -1,7 +1,7 @@
 import { db, TABLE_NAMES } from "./db";
 
 /** Tables written to an export file: tombstones are device-local. */
-const EXPORTED = TABLE_NAMES.filter((t) => t !== "deletions" && t !== "embeddings");
+const EXPORTED = TABLE_NAMES.filter((t) => t !== "deletions" && t !== "embeddings" && t !== "codeLinks");
 
 export const EXPORT_FORMAT = "keel/1";
 

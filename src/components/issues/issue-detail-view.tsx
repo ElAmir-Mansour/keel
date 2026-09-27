@@ -17,6 +17,7 @@ import { ago, fmtDate } from "@/lib/dates";
 import { deleteIssue, updateIssue } from "@/lib/repo";
 import { issueKey, type Issue, type IssueEvent, type Project } from "@/lib/types";
 import { backlinksTo } from "@/lib/wikilinks";
+import { GithubLinks } from "@/components/issues/github-links";
 import { MarkdownEditor } from "@/components/markdown";
 import { EmptyState, IssueKey, KindBadge, Section, StatusIcon, statusLabel } from "@/components/ui-bits";
 import { AssigneePicker, DueDatePicker, EstimateInput, LabelsEditor, MilestonePicker, PriorityPicker, StatusPicker } from "./pickers";
@@ -122,6 +123,9 @@ function IssueDetail({ issue, project }: { issue: Issue; project: Project | null
             )}
           </Section>
 
+          <Section title="Pull requests and commits">
+            <GithubLinks issueId={issue.id} />
+          </Section>
           <Section title="Mentioned in">
             {mentions.length ? (
               <ul className="divide-y rounded-lg border">

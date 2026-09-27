@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type {
+  CodeLink,
   Decision,
   Deletion,
   Embedding,
@@ -31,6 +32,7 @@ export class KeelDB extends Dexie {
   settings!: EntityTable<Setting, "key">;
   deletions!: EntityTable<Deletion, "id">;
   embeddings!: EntityTable<Embedding, "id">;
+  codeLinks!: EntityTable<CodeLink, "id">;
 
   constructor(name = "keel") {
     super(name);
@@ -65,6 +67,10 @@ export class KeelDB extends Dexie {
     this.version(3).stores({
       embeddings: "id, recordId, kind, version",
     });
+    // v4: pull requests and commits linked to issues (device-local, re-synced from GitHub).
+    this.version(4).stores({
+      codeLinks: "id, issueId, projectId, kind, updatedAt",
+    });
   }
 }
 
@@ -83,6 +89,7 @@ export const TABLE_NAMES = [
   "settings",
   "deletions",
   "embeddings",
+  "codeLinks",
 ] as const;
 
 /** Tables that take part in sync and backups (settings and tombstones are device-local). */

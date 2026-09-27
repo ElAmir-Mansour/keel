@@ -15,6 +15,7 @@ import { SyncSettings } from "@/components/settings/sync-settings";
 import { ImportSettings } from "@/components/settings/import-settings";
 import { DigestSettings } from "@/components/settings/digest-settings";
 import { SemanticSettings } from "@/components/settings/semantic-settings";
+import { GithubSettings } from "@/components/settings/github-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { PageHeader } from "@/components/ui-bits";
 import { useIsEmptyWorkspace } from "@/hooks/use-data";
@@ -197,6 +198,10 @@ export function SettingsPage() {
 
       <SettingsSection id="sync" title="Sync across devices" description="Optional. Your own Supabase project holds an encrypted-in-transit copy; nothing is shared with anyone else.">
         <SyncSettings />
+      </SettingsSection>
+
+      <SettingsSection id="github" title="GitHub" description="Link pull requests and commits to issues, and let a merged PR close the issue.">
+        <GithubSettings />
       </SettingsSection>
 
       <SettingsSection id="shortcuts" title="Keyboard shortcuts" description="Single keys work whenever you are not typing in a field.">

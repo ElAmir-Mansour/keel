@@ -166,6 +166,25 @@ export interface Person {
   updatedAt: string;
 }
 
+/** A pull request or commit that mentions an issue key (GitHub integration). */
+export interface CodeLink {
+  id: string; // pr:owner/repo#123 or commit:owner/repo@sha
+  issueId: string;
+  projectId: string;
+  kind: "pr" | "commit";
+  repo: string; // owner/name
+  number?: number;
+  sha?: string;
+  title: string;
+  url: string;
+  state: "open" | "draft" | "merged" | "closed" | "committed";
+  author?: string;
+  createdAt: string;
+  mergedAt?: string;
+  updatedAt: string;
+  syncedAt: string;
+}
+
 /** One embedded chunk of a note, issue or decision (semantic search index). */
 export interface Embedding {
   id: string; // kind:recordId:chunk

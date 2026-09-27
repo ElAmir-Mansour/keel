@@ -75,8 +75,10 @@ export async function deleteProject(pid: string) {
       db.risks,
       db.updates,
       db.deletions,
+      db.codeLinks,
     ],
     async () => {
+      await db.codeLinks.where({ projectId: pid }).delete();
       for (const tbl of ["milestones", "issues", "issueEvents", "risks", "updates"] as const) {
         const ids = await db[tbl].where({ projectId: pid }).primaryKeys();
         await tombstone(tbl, ids as string[]);
@@ -228,7 +230,8 @@ export async function transitionIssue(
 }
 
 export async function deleteIssue(iid: string) {
-  await db.transaction("rw", [db.issues, db.issueEvents, db.deletions], async () => {
+  await db.transaction("rw", [db.issues, db.issueEvents, db.deletions, db.codeLinks], async () => {
+    await db.codeLinks.where({ issueId: iid }).delete();
     const eventIds = (await db.issueEvents.where({ issueId: iid }).primaryKeys()) as string[];
     await tombstone("issueEvents", eventIds);
     await db.issueEvents.where({ issueId: iid }).delete();
