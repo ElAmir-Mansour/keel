@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { AiSettings } from "@/components/ai/ai-settings";
 import { SyncSettings } from "@/components/settings/sync-settings";
+import { ImportSettings } from "@/components/settings/import-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { PageHeader } from "@/components/ui-bits";
 import { useIsEmptyWorkspace } from "@/hooks/use-data";
@@ -182,6 +183,10 @@ export function SettingsPage() {
           </Button>
         </div>
         {counts && !empty ? <p className="text-xs text-muted-foreground">Sample data can only be loaded into an empty workspace. Export, then clear all data, to try it.</p> : null}
+      </SettingsSection>
+
+      <SettingsSection id="import" title="Import" description="Bring in an Obsidian vault, or the issues you track in Linear or Jira. You see a preview before anything is written.">
+        <ImportSettings />
       </SettingsSection>
 
       <SettingsSection id="backups" title="Automatic backups" description="A JSON copy of everything, written to a folder on a schedule while Keel is open.">

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { FolderPlus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -38,6 +39,9 @@ export function Onboarding() {
         </Button>
         <Button variant="outline" onClick={() => openQuickCreate("project")}>
           New project
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href="/settings#import">Import from Obsidian, Linear or Jira</Link>
         </Button>
       </div>
       <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">

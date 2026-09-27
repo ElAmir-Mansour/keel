@@ -44,8 +44,13 @@ export type Resolved =
   | { kind: "decision"; href: string; label: string; decision: Decision }
   | { kind: "missing"; href: string; label: string; target: string };
 
+/** Obsidian allows [[Note#Heading]] and [[Note^block]]; the note is what we resolve. */
+export function linkBase(target: string) {
+  return target.replace(/[#^].*$/, "").trim();
+}
+
 export function resolveLink(target: string, idx: LinkIndex): Resolved {
-  const t = target.trim();
+  const t = linkBase(target);
   const im = t.match(ISSUE_RE);
   if (im) {
     const project = idx.projects.find((p) => p.key === im[1]);
@@ -70,7 +75,7 @@ export function resolveLink(target: string, idx: LinkIndex): Resolved {
 /** Notes whose body links to the given target (a note title, issue key or ADR-n). */
 export function backlinksTo(targets: string[], notes: Note[]) {
   const wanted = new Set(targets.map((t) => t.toLowerCase()));
-  return notes.filter((n) => extractLinks(n.body).some((l) => wanted.has(l.target.toLowerCase())));
+  return notes.filter((n) => extractLinks(n.body).some((l) => wanted.has(linkBase(l.target).toLowerCase())));
 }
 
 export function noteLinkTargets(note: Note) {
