@@ -9,7 +9,7 @@ decisions that were made, the risks that are open, and a handful of charts that 
 do next. It runs entirely in your browser. Nothing leaves the device unless you export it or ask
 the assistant a question.
 
-> Live: https://keel-elamir.vercel.app · Source: https://github.com/ElAmir-Mansour/keel
+> Live: https://keel-six-amber.vercel.app · Source: https://github.com/ElAmir-Mansour/keel
 
 ## What it does
 
