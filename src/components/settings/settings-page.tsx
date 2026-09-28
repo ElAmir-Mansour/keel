@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { ImportSettings } from "@/components/settings/import-settings";
 import { DigestSettings } from "@/components/settings/digest-settings";
 import { SemanticSettings } from "@/components/settings/semantic-settings";
 import { InstallSettings } from "@/components/settings/install-settings";
+import { LocalSettings } from "@/components/settings/local-settings";
 import { GithubSettings } from "@/components/settings/github-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { PageHeader } from "@/components/ui-bits";
@@ -71,6 +72,23 @@ const SHORTCUTS: { keys: string[]; then?: string[]; what: string }[] = [
   { keys: ["↵"], what: "Open the selected item" },
   { keys: ["Esc"], what: "Close a dialog or leave a field" },
 ];
+
+function LocalSection() {
+  const t = useT();
+  const [active, setActive] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch("/api/local/status", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { dir: null }))
+      .then((j: { dir: string | null }) => setActive(Boolean(j.dir)))
+      .catch(() => setActive(false));
+  }, []);
+  if (!active) return null;
+  return (
+    <SettingsSection id="local" title={t("Local folder")} description={t("This Keel runs on your machine and can import from a folder other tools write to.")}>
+      <LocalSettings />
+    </SettingsSection>
+  );
+}
 
 function SettingsSection({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -226,6 +244,8 @@ export function SettingsPage() {
       <SettingsSection id="import" title={t("Import")} description={t("Bring in an Obsidian vault, or the issues you track in Linear or Jira. You see a preview before anything is written.")}>
         <ImportSettings />
       </SettingsSection>
+
+      <LocalSection />
 
       <SettingsSection id="backups" title={t("Automatic backups")} description={t("A JSON copy of everything, written to a folder on a schedule while Keel is open.")}>
         <BackupSettings />
