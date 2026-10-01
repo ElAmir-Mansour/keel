@@ -36,8 +36,10 @@ export function inlineFontCss(family: string): Promise<string> {
         const fam = rule.style.getPropertyValue("font-family").replace(/["']/g, "").trim().toLowerCase();
         if (fam !== key) continue;
         const src = rule.style.getPropertyValue("src");
-        const url = /url\(["']?([^"')]+)["']?\)/.exec(src)?.[1];
-        if (!url) continue;
+        const raw = /url\(["']?([^"')]+)["']?\)/.exec(src)?.[1];
+        if (!raw) continue;
+        // Font URLs are relative to the stylesheet, not to the page.
+        const url = new URL(raw, sheet.href ?? location.href).href;
         try {
           const res = await fetch(url);
           if (!res.ok) continue;
@@ -95,13 +97,21 @@ export async function standaloneSvg(src: SVGSVGElement, theme: ExportTheme = "li
     clone.setAttribute("height", String(Math.round(height)));
     clone.setAttribute("viewBox", `0 0 ${Math.round(width)} ${Math.round(height)}`);
     clone.setAttribute("direction", "ltr");
+    // Embed the page's own font, and the Arabic one when the chart has Arabic
+    // text, so the file renders as it looked on screen. A generic sans stack
+    // follows so nothing ever falls back to the SVG default serif.
     const family = getComputedStyle(src).fontFamily.split(",")[0].replace(/["']/g, "").trim();
-    const css = family ? await inlineFontCss(family) : "";
+    const hasArabic = /[\u0600-\u06FF]/.test(clone.textContent ?? "");
+    const families = [family, hasArabic ? "IBM Plex Sans Arabic" : ""].filter(Boolean);
+    const css = (await Promise.all(families.map((f) => inlineFontCss(f)))).join("\n");
     if (css) {
       const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
       style.textContent = css;
       clone.prepend(style);
     }
+    const stack = [...families.map((f) => `"${f}"`), "ui-sans-serif", "system-ui", "-apple-system", '"Segoe UI"', "Roboto", "Helvetica", "Arial", '"Noto Sans Arabic"', "sans-serif"].join(", ");
+    clone.setAttribute("font-family", stack);
+    for (const el of Array.from(clone.querySelectorAll<SVGElement>("[font-family]"))) if (el !== clone) el.removeAttribute("font-family");
   } finally {
     host.remove();
   }
