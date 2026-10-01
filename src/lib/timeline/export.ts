@@ -80,7 +80,7 @@ export async function standaloneSvg(src: SVGSVGElement, theme: ExportTheme = "li
       for (const prop of STYLE_PROPS) {
         let v = cs.getPropertyValue(prop);
         if (!v) continue;
-        if ((prop === "fill" || prop === "stroke") && v !== "none") v = toHex(v);
+        if ((prop === "fill" || prop === "stroke") && v !== "none" && !v.startsWith("url(")) v = toHex(v);
         el.setAttribute(prop, v);
       }
       el.removeAttribute("class");
@@ -179,7 +179,7 @@ export interface PrintSection {
  * Print a one-page handout: title, the chart, then the story as columns.
  * Uses a hidden iframe so no popup is involved; the person picks "Save as PDF".
  */
-export async function printTimeline(svg: SVGSVGElement, opts: { title: string; description?: string; sections: PrintSection[]; footer?: string; dir?: "ltr" | "rtl"; lang?: string }) {
+export async function printTimeline(svg: SVGSVGElement, opts: { title: string; description?: string; sections: PrintSection[]; footer?: string; dir?: "ltr" | "rtl"; lang?: string; page?: "a4-landscape" | "slide" }) {
   const family = getComputedStyle(document.body).fontFamily.split(",")[0].replace(/["']/g, "").trim();
   const fontCss = family ? await inlineFontCss(family) : "";
   const cols = opts.sections
@@ -193,8 +193,9 @@ export async function printTimeline(svg: SVGSVGElement, opts: { title: string; d
   const html = `<!doctype html><html lang="${opts.lang ?? "en"}" dir="${opts.dir ?? "ltr"}"><head><meta charset="utf-8"><title>${esc(opts.title)}</title>
 <style>
 ${fontCss}
-@page { size: A4 landscape; margin: 12mm; }
+@page { size: ${opts.page === "slide" ? "13.333in 7.5in" : "A4 landscape"}; margin: ${opts.page === "slide" ? "0" : "12mm"}; }
 html { color-scheme: light; }
+${opts.page === "slide" ? "body { width: 13.333in; height: 7.5in; overflow: hidden; } h1, p.desc, .cols, footer { display: none; } .chart { border: 0; border-radius: 0; width: 13.333in; height: 7.5in; } .chart svg { width: 13.333in; height: 7.5in; }" : ""}
 body { margin: 0; font-family: ${family ? `"${family}", ` : ""}ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif; color: #1f1f1d; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 h1 { font-size: 20px; margin: 0 0 2px; letter-spacing: -0.01em; }
 p.desc { margin: 0 0 10px; color: #6b6a65; font-size: 12px; }

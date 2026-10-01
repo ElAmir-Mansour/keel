@@ -94,7 +94,7 @@ const STATUSES: { value: "auto" | TimelineEntryStatus; label: string }[] = [
   { value: "planned", label: "Planned" },
 ];
 
-function TextCell({ value, onSave, placeholder, mono, className, inputRef, list }: { value: string; onSave: (v: string) => void; placeholder?: string; mono?: boolean; className?: string; inputRef?: React.Ref<HTMLInputElement>; list?: string }) {
+export function TextCell({ value, onSave, placeholder, mono, className, inputRef, list }: { value: string; onSave: (v: string) => void; placeholder?: string; mono?: boolean; className?: string; inputRef?: React.Ref<HTMLInputElement>; list?: string }) {
   const [draft, setDraft] = useDraft(value, onSave);
   return (
     <input

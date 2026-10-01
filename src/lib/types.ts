@@ -213,6 +213,9 @@ export interface NoteVersion {
 // draws as a bar, a milestone as a diamond, anything else as a dot.
 export type TimelineEntryKind = "event" | "milestone";
 export type TimelineEntryStatus = "done" | "active" | "planned";
+/** Red / amber / green as managers read it: on track, at risk, off track. */
+export type Rag = "on" | "risk" | "off";
+export type Confidence = "high" | "medium" | "low";
 
 export interface TimelineEntry {
   id: string;
@@ -225,6 +228,31 @@ export interface TimelineEntry {
   status?: TimelineEntryStatus;
   note?: string; // one or two lines of markdown
   link?: string; // wikilink target: PLAT-12, ADR-3 or a note title
+  // Management view. Only entries marked `exec` appear on the slide.
+  exec?: boolean;
+  /** The date first committed to (the end for a range); slippage is measured against it. */
+  baseline?: string; // YYYY-MM-DD
+  owner?: string;
+  confidence?: Confidence;
+  /** Overrides the computed RAG; `why` says in a few words what the colour means. */
+  rag?: Rag;
+  why?: string;
+}
+
+/** A decision leadership has to take, with who owns it and by when. */
+export interface TimelineAsk {
+  id: string;
+  decision: string;
+  owner?: string;
+  neededBy?: string; // YYYY-MM-DD
+  done?: boolean;
+}
+
+/** What the executive items looked like at a review, so the next one can say what changed. */
+export interface TimelineSnapshot {
+  id: string;
+  at: string; // YYYY-MM-DD
+  items: { id: string; title: string; date: string; rag: Rag; state: TimelineEntryStatus }[];
 }
 
 export interface Timeline {
@@ -236,9 +264,30 @@ export interface Timeline {
   /** Optional fixed window; otherwise the chart fits the entries. */
   from?: string; // YYYY-MM-DD
   to?: string; // YYYY-MM-DD
+  // Management view
+  /** The action title on the slide; generated from the data when empty. */
+  headline?: string;
+  owner?: string;
+  asOf?: string; // YYYY-MM-DD; today when empty
+  nextReview?: string; // YYYY-MM-DD
+  asks?: TimelineAsk[];
+  snapshots?: TimelineSnapshot[];
+  /** Mirror the slide's time axis for an Arabic-only audience. */
+  mirror?: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export const RAGS: { value: Rag; label: string }[] = [
+  { value: "on", label: "On track" },
+  { value: "risk", label: "At risk" },
+  { value: "off", label: "Off track" },
+];
+export const CONFIDENCES: { value: Confidence; label: string }[] = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+];
 
 /** A pull request or commit that mentions an issue key (GitHub integration). */
 export interface CodeLink {

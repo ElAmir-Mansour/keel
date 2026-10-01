@@ -78,3 +78,29 @@ test("the PDF handout prints a document with the chart and the story", async ({ 
   expect(printed.text).toContain("What's next");
   expect(printed.text).toContain("Exported from Keel");
 });
+
+test("the management view shows the slide with status, slippage and asks, and records a review", async ({ page }) => {
+  await seed(page);
+  await page.goto("/timelines");
+  await page.getByRole("link", { name: /Platform base — walking skeleton/ }).click();
+  await page.getByRole("tab", { name: "Management" }).click();
+  const slide = page.getByRole("img", { name: /Management view: Platform base/ });
+  await expect(slide).toBeVisible();
+  await expect(slide.locator("text", { hasText: "Today" })).toBeVisible();
+  await expect(slide.getByText("Decisions needed", { exact: true })).toBeVisible();
+  await expect(slide.locator("text", { hasText: /\+12d/ }).first()).toBeVisible();
+  await expect(slide.locator("text", { hasText: /Since \d+ \w+:/ })).toBeVisible();
+  await expect(slide.locator("text", { hasText: /slipped/ })).toBeVisible();
+  // The panel lists executive items with computed status and the baseline field.
+  await expect(page.getByRole("heading", { name: /Executive items/ })).toBeVisible();
+  await expect(page.getByLabel("Baseline").first()).toBeVisible();
+  // Record a review for today; a chip appears.
+  await page.getByRole("button", { name: /Record review as of/ }).click();
+  await expect(page.getByText(/Review recorded as of/)).toBeVisible();
+  await expect(page.getByText(/Review \d+ \w+ · \d+ items/).first()).toBeVisible();
+  // Export the slide as PNG.
+  await page.getByRole("button", { name: "Export" }).click();
+  const png = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "PNG image", exact: true }).click();
+  expect((await png).suggestedFilename()).toMatch(/-management-.*\.png$/);
+});

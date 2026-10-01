@@ -4,13 +4,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
-import { CalendarRange, Table2, Trash2 } from "lucide-react";
+import { CalendarRange, Presentation, Table2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState, ProjectDot } from "@/components/ui-bits";
 import { useProjects } from "@/hooks/use-data";
@@ -26,6 +27,9 @@ import { ExportMenu } from "./export-menu";
 import { TimelineChart, TimelineLegend } from "./timeline-chart";
 import { TimelineEditor } from "./timeline-editor";
 import { TimelineStory } from "./timeline-story";
+import { ManagementSlide } from "./management-slide";
+import { ManagementPanel } from "./management-panel";
+import { execEntries } from "@/lib/timeline/management";
 
 /** /timelines/[id] — one timeline: chart, story, editor. */
 export function TimelinePage() {
@@ -58,6 +62,8 @@ function TimelineView({ timeline }: { timeline: Timeline }) {
   const projects = useProjects();
   const isMobile = useIsMobile();
   const svgRef = useRef<SVGSVGElement>(null);
+  const slideRef = useRef<SVGSVGElement>(null);
+  const [view, setView] = useState<"chart" | "management">("chart");
   const today = useMemo(() => todayYMD(), []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusTitle, setFocusTitle] = useState(false);
@@ -123,7 +129,18 @@ function TimelineView({ timeline }: { timeline: Timeline }) {
             />
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <ExportMenu timeline={timeline} svgRef={svgRef} today={today} />
+            <Tabs value={view} onValueChange={(v) => setView(v as "chart" | "management")}>
+              <TabsList>
+                <TabsTrigger value="chart">
+                  <CalendarRange /> {t("Detail")}
+                </TabsTrigger>
+                <TabsTrigger value="management">
+                  <Presentation /> {t("Management")}
+                  {execEntries(timeline).length ? <span className="ms-1 rounded-full bg-muted px-1.5 text-[10px] tabular-nums">{execEntries(timeline).length}</span> : null}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {view === "management" ? <ExportMenu timeline={timeline} svgRef={slideRef} today={today} variant="slide" /> : <ExportMenu timeline={timeline} svgRef={svgRef} today={today} />}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive" aria-label={t("Delete timeline")} onClick={() => setConfirmDelete(true)}>
@@ -169,7 +186,19 @@ function TimelineView({ timeline }: { timeline: Timeline }) {
         </div>
       </div>
 
-      <Card size="sm" className="relative min-w-0 overflow-hidden">
+      {view === "management" ? (
+        <>
+          <Card size="sm" className="min-w-0 overflow-hidden">
+            <CardContent className="px-0 pb-0">
+              <div className="border-b px-3 pb-2 text-xs text-muted-foreground">{t("One slide for a steering meeting: executive items only, status from the dates, slippage against the baseline, decisions needed. Export it as a 16:9 PNG or PDF.")}</div>
+              <ManagementSlide timeline={timeline} today={today} svgRef={slideRef} />
+            </CardContent>
+          </Card>
+          <ManagementPanel timeline={timeline} today={today} />
+        </>
+      ) : null}
+
+      <Card size="sm" className={view === "management" ? "hidden" : "relative min-w-0 overflow-hidden"}>
         <CardContent className="px-0 pb-0">
           <div className="flex items-center justify-between gap-2 px-3 pb-2">
             <TimelineLegend />
@@ -205,7 +234,7 @@ function TimelineView({ timeline }: { timeline: Timeline }) {
         </CardContent>
       </Card>
 
-      {!isMobile && !showTable && timeline.entries.length ? <TimelineStory entries={timeline.entries} today={today} selectedId={selectedId} onSelect={select} /> : null}
+      {view === "chart" && !isMobile && !showTable && timeline.entries.length ? <TimelineStory entries={timeline.entries} today={today} selectedId={selectedId} onSelect={select} /> : null}
 
       <TimelineEditor timeline={timeline} selectedId={selectedId} onSelect={setSelectedId} focusTitle={focusTitle} />
 

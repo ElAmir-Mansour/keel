@@ -16,10 +16,10 @@ import { relativeLabel } from "./timeline-story";
 // SVG for a design tool, a PDF handout through the print dialog, or the text
 // form for a note. Everything runs in the browser from the on-screen SVG.
 
-export function ExportMenu({ timeline, svgRef, today = todayYMD() }: { timeline: Timeline; svgRef: RefObject<SVGSVGElement | null>; today?: string }) {
+export function ExportMenu({ timeline, svgRef, today = todayYMD(), variant = "chart" }: { timeline: Timeline; svgRef: RefObject<SVGSVGElement | null>; today?: string; variant?: "chart" | "slide" }) {
   const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
-  const name = `${safeFilename(timeline.title)}-${today}`;
+  const name = `${safeFilename(timeline.title)}${variant === "slide" ? "-management" : ""}-${today}`;
 
   async function withSvg(kind: string, fn: (svg: SVGSVGElement) => Promise<void>, theme: ExportTheme = "light") {
     const el = svgRef.current;
@@ -53,6 +53,10 @@ export function ExportMenu({ timeline, svgRef, today = todayYMD() }: { timeline:
     });
   const pdf = () =>
     withSvg("pdf", async (svg) => {
+      if (variant === "slide") {
+        await printTimeline(svg, { title: timeline.title, sections: [], page: "slide", dir: getLang() === "ar" ? "rtl" : "ltr", lang: getLang() });
+        return;
+      }
       const { done, active, planned } = splitByState(timeline.entries, today);
       const row = (e: TimelineEntry, state: "done" | "active" | "planned") => ({
         date: e.end ? `${fmtDate(e.start, "d MMM")} → ${fmtDate(e.end, "d MMM yyyy")}` : fmtDate(e.start),
@@ -100,7 +104,7 @@ export function ExportMenu({ timeline, svgRef, today = todayYMD() }: { timeline:
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="text-xs text-muted-foreground">{t("Chart")}</DropdownMenuLabel>
         <DropdownMenuItem onSelect={() => void pdf()}>
-          <Printer /> {t("PDF handout (print)")}
+          <Printer /> {variant === "slide" ? t("PDF slide (print)") : t("PDF handout (print)")}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void png("light")}>
           <FileImage /> {t("PNG image")}

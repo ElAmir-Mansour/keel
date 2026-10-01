@@ -156,6 +156,20 @@ describe("layout", () => {
     );
     expect(new Set(crowded.map((p) => p.row)).size).toBeGreaterThan(1);
   });
+  it("opens a new row for a whole label rather than cutting it", () => {
+    const wide = (text: string, size: number) => approxMeasure(text, size) * 1.2;
+    const placed = placePoints(
+      [
+        { e: { title: "Walking skeleton demo" }, px: 930 },
+        { e: { title: "Pilot tenant onboarded" }, px: 1450 },
+      ],
+      { width: 1562, maxLabel: 360, measure: wide, fontSize: 26, gap: 10 },
+    );
+    const pilot = placed.find((p) => (p.e as { title: string }).title.startsWith("Pilot"))!;
+    expect(pilot.label).toBe("Pilot tenant onboarded");
+    expect(pilot.anchor).toBe("end");
+    expect(pilot.row).toBe(1);
+  });
   it("renders an empty timeline with a single empty lane", () => {
     const l = layoutTimeline({ entries: [] }, { width: 600, today: TODAY });
     expect(l.lanes).toHaveLength(1);

@@ -188,39 +188,50 @@ export function packRows(items: { left: number; right: number }[], gap = 6): num
  * row, then a new row. Rows track occupied intervals, not just a right edge,
  * because a left-anchored label can sit before an earlier marker.
  */
-export function placePoints<T>(items: { e: T; px: number }[], o: { width: number; maxLabel: number; measure: Measure; fontSize: number; gap?: number }) {
+export function placePoints<T>(items: { e: T; px: number }[], o: { width: number; maxLabel: number; measure: Measure; fontSize: number; gap?: number; extraWidth?: (e: T) => number }) {
   const gap = o.gap ?? 6;
   const r = 7;
+  const extraOf = o.extraWidth ?? (() => 0);
   const rows: { left: number; right: number }[][] = [];
   const free = (row: { left: number; right: number }[], left: number, right: number) => row.every((iv) => right + gap <= iv.left || left - gap >= iv.right);
   const out: { e: T; px: number; row: number; anchor: "start" | "end"; label: string; r: number }[] = [];
   for (const it of [...items].sort((a, b) => a.px - b.px)) {
-    const full = o.measure(String((it.e as { title?: string }).title ?? ""), o.fontSize);
     const title = String((it.e as { title?: string }).title ?? "");
-    const roomRight = o.width - PAD_X - (it.px + r + gap);
-    const roomLeft = it.px - r - gap - PAD_X;
+    const extra = extraOf(it.e);
+    const full = o.measure(title, o.fontSize) + extra;
+    const roomRight = o.width - PAD_X - (it.px + r + gap) - extra;
+    const roomLeft = it.px - r - gap - PAD_X - extra;
     const sides: { anchor: "start" | "end"; room: number }[] = [
       { anchor: "start", room: roomRight },
       { anchor: "end", room: roomLeft },
     ];
-    let choice: { anchor: "start" | "end"; label: string; left: number; right: number; row: number } | null = null;
+    // A whole label beats a truncated one; then the lowest row; then the right side.
+    let choice: { anchor: "start" | "end"; label: string; left: number; right: number; row: number; cut: boolean } | null = null;
     for (const side of sides) {
       if (side.room < 40 && side.room < full) continue;
       const label = truncate(title, Math.min(o.maxLabel, Math.max(24, side.room)), o.measure, o.fontSize);
-      const lw = o.measure(label, o.fontSize);
+      const cut = label !== title;
+      const lw = o.measure(label, o.fontSize) + extra;
       const left = side.anchor === "start" ? it.px - r : it.px - r - gap - lw;
       const right = side.anchor === "start" ? it.px + r + gap + lw : it.px + r;
       const row = rows.findIndex((rw) => free(rw, left, right));
-      if (row >= 0 && (!choice || row < choice.row)) choice = { anchor: side.anchor, label, left, right, row };
+      if (row < 0) continue;
+      const better = !choice || (choice.cut && !cut) || (choice.cut === cut && row < choice.row);
+      if (better) choice = { anchor: side.anchor, label, left, right, row, cut };
     }
-    if (!choice) {
-      const side = sides[0].room >= sides[1].room || sides[0].room >= full ? sides[0] : sides[1];
+    // No row takes a whole label: open a new row for it rather than cutting it,
+    // on whichever side has the room (the right when both do).
+    if (!choice || choice.cut) {
+      const side = sides.find((sd) => sd.room >= full) ?? (sides[0].room >= sides[1].room ? sides[0] : sides[1]);
       const label = truncate(title, Math.min(o.maxLabel, Math.max(24, side.room)), o.measure, o.fontSize);
-      const lw = o.measure(label, o.fontSize);
+      const lw = o.measure(label, o.fontSize) + extra;
       const left = side.anchor === "start" ? it.px - r : it.px - r - gap - lw;
       const right = side.anchor === "start" ? it.px + r + gap + lw : it.px + r;
-      choice = { anchor: side.anchor, label, left, right, row: rows.length };
-      rows.push([]);
+      const cut = label !== title;
+      if (!choice || (choice.cut && !cut)) {
+        choice = { anchor: side.anchor, label, left, right, row: rows.length, cut };
+        rows.push([]);
+      }
     }
     rows[choice.row].push({ left: choice.left, right: choice.right });
     out.push({ e: it.e, px: it.px, row: choice.row, anchor: choice.anchor, label: choice.label, r });

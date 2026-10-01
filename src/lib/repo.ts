@@ -16,6 +16,7 @@ import type {
   SavedView,
   Timeline,
   TimelineEntry,
+  TimelineSnapshot,
   Update,
 } from "./types";
 
@@ -599,6 +600,15 @@ export function normalizeEntries(entries: Partial<TimelineEntry>[]): TimelineEnt
     if (note) entry.note = note;
     const link = (e.link ?? "").trim();
     if (link) entry.link = link;
+    if (e.exec) entry.exec = true;
+    const baseline = (e.baseline ?? "").trim();
+    if (ymd.test(baseline)) entry.baseline = baseline;
+    const owner = (e.owner ?? "").trim();
+    if (owner) entry.owner = owner;
+    if (e.confidence === "high" || e.confidence === "medium" || e.confidence === "low") entry.confidence = e.confidence;
+    if (e.rag === "on" || e.rag === "risk" || e.rag === "off") entry.rag = e.rag;
+    const why = (e.why ?? "").trim();
+    if (why) entry.why = why;
     out.push(entry);
   }
   return out.sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
@@ -644,6 +654,28 @@ export async function addTimelineEntries(tid: string, entries: Partial<TimelineE
     }
     await db.timelines.update(tid, { entries: normalizeEntries(merged), updatedAt: nowISO() });
     return { added, updated: entries.length - added };
+  });
+}
+
+/** Freeze the executive items as of a date, so the next review can list what changed. */
+export async function recordReview(tid: string, at: string, items: TimelineSnapshot["items"]) {
+  return db.transaction("rw", db.timelines, async () => {
+    const tl = await db.timelines.get(tid);
+    if (!tl) throw new Error("Timeline not found");
+    // One snapshot per day: recording twice on the same day replaces the first.
+    const kept = (tl.snapshots ?? []).filter((s) => s.at !== at);
+    const snap: TimelineSnapshot = { id: id(), at, items };
+    const snapshots = [...kept, snap].sort((a, b) => a.at.localeCompare(b.at)).slice(-24);
+    await db.timelines.update(tid, { snapshots, updatedAt: nowISO() });
+    return snap;
+  });
+}
+
+export async function deleteReview(tid: string, sid: string) {
+  await db.transaction("rw", db.timelines, async () => {
+    const tl = await db.timelines.get(tid);
+    if (!tl) return;
+    await db.timelines.update(tid, { snapshots: (tl.snapshots ?? []).filter((s) => s.id !== sid), updatedAt: nowISO() });
   });
 }
 

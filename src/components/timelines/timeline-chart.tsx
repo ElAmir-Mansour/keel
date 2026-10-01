@@ -24,7 +24,12 @@ export const STATE_STROKE: Record<TimelineEntryStatus, string> = {
 };
 export const TODAY_COLOR = "var(--viz-series-2)";
 
-/** Text width from a canvas using the chart's own font, so labels pack as drawn. */
+/**
+ * Text width from a canvas using the chart's own font, so labels pack as
+ * drawn. The font comes from the container when it is mounted and from the
+ * body before that (the chart inherits the same family), so the first layout
+ * and every later one measure alike.
+ */
 export function useMeasure(ref: RefObject<Element | null>): Measure {
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const fontRef = useRef<string>("");
@@ -34,8 +39,8 @@ export function useMeasure(ref: RefObject<Element | null>): Measure {
       if (!ctxRef.current) ctxRef.current = document.createElement("canvas").getContext("2d");
       const ctx = ctxRef.current;
       if (!ctx) return approxMeasure(text, size);
-      if (!fontRef.current && ref.current) fontRef.current = getComputedStyle(ref.current).fontFamily || "sans-serif";
-      ctx.font = `${size}px ${fontRef.current || "sans-serif"}`;
+      if (!fontRef.current) fontRef.current = getComputedStyle(ref.current ?? document.body).fontFamily || "sans-serif";
+      ctx.font = `${size}px ${fontRef.current}`;
       return ctx.measureText(text).width;
     },
     [ref],
