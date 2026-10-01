@@ -14,6 +14,8 @@ import type {
   Project,
   Risk,
   SavedView,
+  Timeline,
+  TimelineEntry,
   Update,
 } from "./types";
 
@@ -78,6 +80,7 @@ export async function deleteProject(pid: string) {
       db.updates,
       db.deletions,
       db.codeLinks,
+      db.timelines,
     ],
     async () => {
       await db.codeLinks.where({ projectId: pid }).delete();
@@ -91,6 +94,7 @@ export async function deleteProject(pid: string) {
         .where({ projectId: pid })
         .modify({ projectId: undefined });
       await db.notes.where({ projectId: pid }).modify({ projectId: undefined });
+      await db.timelines.where({ projectId: pid }).modify({ projectId: undefined, updatedAt: nowISO() });
       await tombstone("projects", [pid]);
       await db.projects.delete(pid);
     },
@@ -570,5 +574,82 @@ export async function deleteView(vid: string) {
   await db.transaction("rw", [db.views, db.deletions], async () => {
     await tombstone("views", [vid]);
     await db.views.delete(vid);
+  });
+}
+
+// ----- timelines ------------------------------------------------------------
+
+/** Entries with ids and trimmed titles, in date order; invalid dates are dropped. */
+export function normalizeEntries(entries: Partial<TimelineEntry>[]): TimelineEntry[] {
+  const ymd = /^\d{4}-\d{2}-\d{2}$/;
+  const out: TimelineEntry[] = [];
+  for (const e of entries) {
+    const title = (e.title ?? "").trim();
+    const start = (e.start ?? "").trim();
+    if (!title || !ymd.test(start)) continue;
+    let end = (e.end ?? "").trim() || undefined;
+    if (end && (!ymd.test(end) || end < start)) end = undefined;
+    const entry: TimelineEntry = { id: e.id || id(), title, start };
+    if (end) entry.end = end;
+    const group = (e.group ?? "").trim();
+    if (group) entry.group = group;
+    if (e.kind === "milestone") entry.kind = "milestone";
+    if (e.status === "done" || e.status === "active" || e.status === "planned") entry.status = e.status;
+    const note = (e.note ?? "").trim();
+    if (note) entry.note = note;
+    const link = (e.link ?? "").trim();
+    if (link) entry.link = link;
+    out.push(entry);
+  }
+  return out.sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
+}
+
+export async function createTimeline(input: Pick<Timeline, "title"> & Partial<Pick<Timeline, "projectId" | "description" | "from" | "to">> & { entries?: Partial<TimelineEntry>[] }) {
+  const now = nowISO();
+  const tl: Timeline = {
+    id: id(),
+    projectId: input.projectId,
+    title: input.title.trim() || "Untitled timeline",
+    description: input.description ?? "",
+    entries: normalizeEntries(input.entries ?? []),
+    from: input.from,
+    to: input.to,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.timelines.add(tl);
+  return tl;
+}
+
+export async function updateTimeline(tid: string, patch: Partial<Timeline>) {
+  const next = { ...patch, updatedAt: nowISO() };
+  if (patch.entries) next.entries = normalizeEntries(patch.entries);
+  await db.timelines.update(tid, next);
+}
+
+/** Append entries; an entry with the same title and start as an existing one updates it instead. */
+export async function addTimelineEntries(tid: string, entries: Partial<TimelineEntry>[]) {
+  return db.transaction("rw", db.timelines, async () => {
+    const tl = await db.timelines.get(tid);
+    if (!tl) throw new Error("Timeline not found");
+    const merged = [...tl.entries];
+    let added = 0;
+    for (const e of normalizeEntries(entries)) {
+      const idx = merged.findIndex((x) => x.title.toLowerCase() === e.title.toLowerCase() && x.start === e.start);
+      if (idx >= 0) merged[idx] = { ...merged[idx], ...e, id: merged[idx].id };
+      else {
+        merged.push(e);
+        added += 1;
+      }
+    }
+    await db.timelines.update(tid, { entries: normalizeEntries(merged), updatedAt: nowISO() });
+    return { added, updated: entries.length - added };
+  });
+}
+
+export async function deleteTimeline(tid: string) {
+  await db.transaction("rw", [db.timelines, db.deletions], async () => {
+    await tombstone("timelines", [tid]);
+    await db.timelines.delete(tid);
   });
 }

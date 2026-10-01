@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import {
   AlertTriangle,
   CalendarDays,
+  CalendarRange,
   CircleDot,
   Download,
   FileText,
@@ -24,7 +25,7 @@ import {
   Waypoints,
 } from "lucide-react";
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command";
-import { useActiveProjects, useAllDecisions, useAllIssues, useAllNotes, useProjects } from "@/hooks/use-data";
+import { useActiveProjects, useAllDecisions, useAllIssues, useAllNotes, useAllTimelines, useProjects } from "@/hooks/use-data";
 import { getOrCreateDailyNote } from "@/lib/repo";
 import { searchAll } from "@/lib/search";
 import { useUi } from "@/lib/ui-store";
@@ -40,6 +41,7 @@ export const NAV = [
   { href: "/notes", label: "Notes", icon: FileText, key: "n" },
   { href: "/decisions", label: "Decisions", icon: Scale, key: "d" },
   { href: "/risks", label: "Risks", icon: AlertTriangle, key: "r" },
+  { href: "/timelines", label: "Timelines", icon: CalendarRange, key: "l" },
   { href: "/graph", label: "Graph", icon: Waypoints, key: "g" },
   { href: "/team", label: "People", icon: Users, key: "t" },
   { href: "/settings", label: "Settings", icon: Settings, key: "," },
@@ -56,13 +58,14 @@ export function CommandPalette() {
   const issues = useAllIssues();
   const notes = useAllNotes();
   const decisions = useAllDecisions();
+  const timelines = useAllTimelines();
 
   function setOpen(v: boolean) {
     setPaletteOpen(v);
     if (!v) setQ("");
   }
 
-  const hits = useMemo(() => searchAll(q, { notes, issues, decisions, projects }), [q, notes, issues, decisions, projects]);
+  const hits = useMemo(() => searchAll(q, { notes, issues, decisions, projects, timelines }), [q, notes, issues, decisions, projects, timelines]);
 
   // Meaning-based matches, when the on-device index is on. Debounced so the
   // model is not asked on every keystroke.
@@ -106,7 +109,7 @@ export function CommandPalette() {
             <CommandGroup heading={t("Results")}>
               {hits.map((h) => (
                 <CommandItem key={h.kind + h.id} value={`${h.kind}-${h.id}`} onSelect={() => go(h.href)}>
-                  {h.kind === "note" ? <FileText /> : h.kind === "issue" ? <CircleDot /> : h.kind === "decision" ? <Scale /> : <FolderKanban />}
+                  {h.kind === "note" ? <FileText /> : h.kind === "issue" ? <CircleDot /> : h.kind === "decision" ? <Scale /> : h.kind === "timeline" ? <CalendarRange /> : <FolderKanban />}
                   <span className="truncate">{h.title}</span>
                   <span className="ms-auto truncate text-xs text-muted-foreground">{h.subtitle}</span>
                 </CommandItem>
@@ -146,6 +149,9 @@ export function CommandPalette() {
             </CommandItem>
             <CommandItem onSelect={() => run(() => openQuickCreate("risk"))}>
               <AlertTriangle /> {t("New risk")}
+            </CommandItem>
+            <CommandItem onSelect={() => run(() => openQuickCreate("timeline"))}>
+              <CalendarRange /> {t("New timeline")}
             </CommandItem>
             <CommandItem onSelect={() => run(() => openQuickCreate("project"))}>
               <FolderKanban /> {t("New project")}

@@ -1,7 +1,7 @@
-import type { Decision, Issue, Note, Project } from "./types";
+import type { Decision, Issue, Note, Project, Timeline } from "./types";
 
 export interface SearchHit {
-  kind: "note" | "issue" | "decision" | "project";
+  kind: "note" | "issue" | "decision" | "project" | "timeline";
   id: string;
   title: string;
   subtitle: string;
@@ -21,7 +21,7 @@ function score(q: string, title: string, body: string) {
 
 export function searchAll(
   query: string,
-  data: { notes: Note[]; issues: Issue[]; decisions: Decision[]; projects: Project[] },
+  data: { notes: Note[]; issues: Issue[]; decisions: Decision[]; projects: Project[]; timelines?: Timeline[] },
   limit = 12,
 ): SearchHit[] {
   const q = query.trim().toLowerCase();
@@ -45,6 +45,10 @@ export function searchAll(
   for (const d of data.decisions) {
     const s = score(q, d.title, d.context + " " + d.decision);
     if (s) hits.push({ kind: "decision", id: d.id, title: d.title, subtitle: `ADR-${d.seq}`, href: `/decisions/${d.id}`, score: s });
+  }
+  for (const tl of data.timelines ?? []) {
+    const s = score(q, tl.title, tl.description + " " + tl.entries.map((e) => e.title).join(" "));
+    if (s) hits.push({ kind: "timeline", id: tl.id, title: tl.title, subtitle: `${tl.entries.length} entries`, href: `/timelines/${tl.id}`, score: s });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
 }

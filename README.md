@@ -21,7 +21,8 @@ the assistant a question.
 | **Risks** | A RAID register per project and across projects, scored likelihood × impact, with a 5 × 5 matrix on the dashboard. |
 | **Health** | A weekly project update — on track / at risk / off track — drafted from the week's activity in one click. |
 | **Dashboard** | Burn-up with a scope line, cumulative flow, throughput, cycle-time distribution, milestone progress, workload by person (framed as capacity, not a scorecard). No velocity, no vanity. |
-| **Assistant** | Ask questions across the vault with numbered citations that link back to the note, issue or decision. Summarise a note, improve its writing, extract tasks, draft the weekly update. Ask it to *do* things and it proposes actions (create issues, log a decision, write a note, update an issue, add a risk) that you approve one by one before anything is written. Bring your own Anthropic key; it is stored only in your browser. |
+| **Assistant** | Ask questions across the vault with numbered citations that link back to the note, issue or decision. Summarise a note, improve its writing, extract tasks, draft the weekly update. Ask it to *do* things and it proposes actions (create issues, log a decision, write a note, update an issue, add a risk, build or extend a timeline) that you approve one by one before anything is written. Bring your own Anthropic key; it is stored only in your browser. |
+| **Timelines** | A timeline builder for "what happened and what comes next". Type dated lines (`2026-09-12: Kickoff`, `Sep 20 – Oct 3: Wireframes #Design`, `2026-12-01: !Launch [[PLAT-12]]`) or fill in rows, pull milestones, decisions and cycles from a project, and get a to-scale chart: lanes per category, bars for phases, diamonds for milestones, a today line, and a story of what happened, what is in progress and what is next. Export as a **PDF handout**, **PNG** (light or dark), **SVG**, or copy the image or the text. |
 | **Cycles** | Optional fixed-length cycles per project. One active, one upcoming; when a cycle ends, unfinished work rolls forward on its own. Saved views keep your favourite filters one click away. |
 | **GitHub** | Link pull requests and commits to issues by key, straight from the browser. Optionally let an opened PR move the issue to review and a merged PR close it, stamped with GitHub's own times. |
 | **Weekly digest** | Once a week, on the day you choose, a digest note is written for every active project: health, what shipped, what is next, risks and asks. The assistant writes it when you have a key; otherwise it is drafted from the facts. |
@@ -29,7 +30,7 @@ the assistant a question.
 | **Install** | Installs as an app (PWA) and opens offline. Arabic interface with right-to-left layout is a switch in Settings. |
 
 Everything is reachable from the keyboard: `⌘K` opens the palette (it shows every shortcut),
-`C` new issue, `N` new note, `T` today's note, `A` ask the assistant, `G` then a letter to jump.
+`C` new issue, `N` new note, `T` today's note, `A` ask the assistant, `G` then a letter to jump (`G L` for timelines).
 
 ## Why local-first
 

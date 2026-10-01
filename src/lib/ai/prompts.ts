@@ -4,7 +4,7 @@ export type AiAction = NonNullable<AiRequest["action"]>;
 
 // Kept stable on purpose: the context is appended after it, so a frozen
 // prefix is what lets Anthropic's prompt cache do anything for us.
-export const SYSTEM_PROMPT = `You are Keel's assistant for a tech lead. Keel is a local-first workspace: a markdown vault of notes linked with [[wikilinks]], projects with milestones and issues (keys like PLAT-12), a decision log (ADR-3), a RAID register of risks, and weekly project-health updates. Everything you know about this workspace is in the Context section below.
+export const SYSTEM_PROMPT = `You are Keel's assistant for a tech lead. Keel is a local-first workspace: a markdown vault of notes linked with [[wikilinks]], projects with milestones and issues (keys like PLAT-12), a decision log (ADR-3), a RAID register of risks, weekly project-health updates, and timelines (dated chronologies of what happened and what comes next, drawn as charts). Everything you know about this workspace is in the Context section below.
 
 How to answer:
 - Answer from the provided context. If the context does not contain the answer, say so plainly and, if you can, name the note, issue or project that probably holds it. Never invent people, issues, dates, numbers or decisions.

@@ -58,13 +58,14 @@ function firstLine(body: string, max = 120) {
 // ----- overview --------------------------------------------------------------
 
 export async function workspaceOverview(): Promise<string> {
-  const [projects, noteCount, issues, decisionCount, risks, updates] = await Promise.all([
+  const [projects, noteCount, issues, decisionCount, risks, updates, timelines] = await Promise.all([
     db.projects.toArray(),
     db.notes.count(),
     db.issues.toArray(),
     db.decisions.count(),
     db.risks.toArray(),
     db.updates.toArray(),
+    db.timelines.toArray(),
   ]);
   const active = projects.filter((p) => p.status === "active" || p.status === "paused");
   const latestUpdate = (pid: string) =>
@@ -85,7 +86,10 @@ export async function workspaceOverview(): Promise<string> {
     `Today is ${todayYMD(today)} (${weekday}).`,
     `Workspace: ${plural(active.length, "active project")}${projectBits.length ? ` — ${projectBits.join("; ")}` : ""}.`,
     `${plural(noteCount, "note")}, ${plural(open.length, "open issue")} (${doing} in progress, ${triage} in triage), ${plural(decisionCount, "decision")}, ${plural(openRisks, "open risk")}.`,
-  ].join(" ");
+    timelines.length ? `Timelines: ${timelines.map((tl) => `“${tl.title}” (${tl.entries.length} entries)`).join(", ")}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 // ----- one note ---------------------------------------------------------------

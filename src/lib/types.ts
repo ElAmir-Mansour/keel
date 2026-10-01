@@ -207,6 +207,39 @@ export interface NoteVersion {
   updatedAt: string; // same as savedAt; keeps the record syncable by version
 }
 
+// Timelines: a hand-made chronology of what happened and what comes next.
+// Entries are embedded in the timeline record so one timeline is one unit for
+// sync, export and the AI tools. Dates are YYYY-MM-DD; an entry with an end
+// draws as a bar, a milestone as a diamond, anything else as a dot.
+export type TimelineEntryKind = "event" | "milestone";
+export type TimelineEntryStatus = "done" | "active" | "planned";
+
+export interface TimelineEntry {
+  id: string;
+  title: string;
+  start: string; // YYYY-MM-DD
+  end?: string; // YYYY-MM-DD, inclusive; makes the entry a range
+  group?: string; // swimlane / category, e.g. "Design", "Ops"
+  kind?: TimelineEntryKind; // default "event"
+  /** Explicit state; when absent it follows from the dates and today. */
+  status?: TimelineEntryStatus;
+  note?: string; // one or two lines of markdown
+  link?: string; // wikilink target: PLAT-12, ADR-3 or a note title
+}
+
+export interface Timeline {
+  id: string;
+  projectId?: string;
+  title: string;
+  description: string;
+  entries: TimelineEntry[];
+  /** Optional fixed window; otherwise the chart fits the entries. */
+  from?: string; // YYYY-MM-DD
+  to?: string; // YYYY-MM-DD
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** A pull request or commit that mentions an issue key (GitHub integration). */
 export interface CodeLink {
   id: string; // pr:owner/repo#123 or commit:owner/repo@sha

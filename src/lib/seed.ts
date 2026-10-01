@@ -14,6 +14,7 @@ import type {
   Priority,
   Project,
   Risk,
+  Timeline,
   Update,
 } from "./types";
 
@@ -511,9 +512,38 @@ Agreed she leads audit and events ([[ADR-2]]); Omar picks up review of backend P
     });
   }
 
+  // A delivery timeline for the platform: the last two months and the next three.
+  const d = (n: number) => ymd(addDays(now, n));
+  const timelines: Timeline[] = [
+    {
+      id: id(),
+      projectId: plat.id,
+      title: "Platform base — walking skeleton",
+      description: "From the first commit to the first department module: what happened, what is in flight, what is next.",
+      entries: [
+        { id: id(), title: "Architecture decisions written", start: d(-56), end: d(-43), group: "Design" },
+        { id: id(), title: "Kickoff", start: d(-55), group: "Design", kind: "milestone" },
+        { id: id(), title: "Tenancy spike", start: d(-42), end: d(-29), group: "Build", link: "PLAT-1" },
+        { id: id(), title: "CI gate with isolation probe", start: d(-30), group: "Ops", link: "ADR-3" },
+        { id: id(), title: "Audit log and outbox", start: d(-28), end: d(-8), group: "Build", link: "ADR-2" },
+        { id: id(), title: "Staging rebuilt", start: d(-20), group: "Ops" },
+        { id: id(), title: "Review SLA agreed", start: d(-2), group: "Design", link: "Platform sync", note: "24 hours or say why." },
+        { id: id(), title: "Module contract", start: d(-7), end: d(21), group: "Build" },
+        { id: id(), title: "Arabic collation verified", start: d(-3), group: "Build" },
+        { id: id(), title: "Walking skeleton demo", start: d(14), group: "Design", kind: "milestone" },
+        { id: id(), title: "Load test the outbox", start: d(18), end: d(25), group: "Ops" },
+        { id: id(), title: "First department module", start: d(30), end: d(72), group: "Build" },
+        { id: id(), title: "Escrow the backup key", start: d(10), group: "Ops", status: "planned" },
+        { id: id(), title: "Pilot tenant onboarded", start: d(80), group: "Design", kind: "milestone" },
+      ],
+      createdAt: subDays(now, 20).toISOString(),
+      updatedAt: subDays(now, 1).toISOString(),
+    },
+  ];
+
   await db.transaction(
     "rw",
-    [db.people, db.projects, db.milestones, db.issues, db.issueEvents, db.risks, db.decisions, db.notes, db.updates, db.settings],
+    [db.people, db.projects, db.milestones, db.issues, db.issueEvents, db.risks, db.decisions, db.notes, db.updates, db.timelines, db.settings],
     async () => {
       await db.people.bulkAdd(people);
       await db.projects.bulkAdd([plat, bill]);
@@ -524,6 +554,7 @@ Agreed she leads audit and events ([[ADR-2]]); Omar picks up review of backend P
       await db.decisions.bulkAdd(decisions);
       await db.notes.bulkAdd([...docNotes, ...notes]);
       await db.updates.bulkAdd(updates);
+      await db.timelines.bulkAdd(timelines);
       // Sample records are back-dated; make the next sync a full merge.
       await db.settings.where("key").startsWith("sync.cursor").delete();
     },

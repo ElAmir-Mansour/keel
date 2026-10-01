@@ -1,8 +1,8 @@
 /* Keel service worker: the app shell works offline. Static assets are
    cache-first (they are content-hashed), navigations are network-first with
    the cached shell as fallback, and the assistant route is never cached. */
-const VERSION = "keel-v1";
-const SHELL = ["/", "/inbox", "/notes", "/projects", "/decisions", "/risks", "/graph", "/team", "/settings", "/icons/icon-192.png", "/icons/icon-512.png"];
+const VERSION = "keel-v2";
+const SHELL = ["/", "/inbox", "/notes", "/projects", "/decisions", "/risks", "/timelines", "/graph", "/team", "/settings", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

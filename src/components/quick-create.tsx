@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useActiveProjects, usePeople } from "@/hooks/use-data";
-import { createDecision, createIssue, createIssuesFromLines, createNote, createPerson, createProject, createRisk, normalizeKey } from "@/lib/repo";
+import { createDecision, createIssue, createIssuesFromLines, createNote, createPerson, createProject, createRisk, createTimeline, normalizeKey } from "@/lib/repo";
 import { NOTE_TEMPLATES } from "@/lib/templates";
 import { ISSUE_STATUSES, NOTE_KINDS, PRIORITIES, PROJECT_COLORS, RISK_KINDS, type IssueStatus, type NoteKind, type Priority, type RiskKind } from "@/lib/types";
 import { useUi } from "@/lib/ui-store";
@@ -33,6 +33,7 @@ export function QuickCreate() {
         {kind === "risk" ? <RiskForm projectId={quickCreate?.projectId} /> : null}
         {kind === "project" ? <ProjectForm /> : null}
         {kind === "person" ? <PersonForm /> : null}
+        {kind === "timeline" ? <TimelineForm projectId={quickCreate?.projectId} /> : null}
       </DialogContent>
     </Dialog>
   );
@@ -396,6 +397,46 @@ export function suggestKey(name: string) {
   if (!words.length) return "";
   const base = words.length === 1 ? words[0].slice(0, 4) : words.map((w) => w[0]).join("").slice(0, 4);
   return normalizeKey(base);
+}
+
+function TimelineForm({ projectId: initial }: { projectId?: string }) {
+  const { closeQuickCreate } = useUi();
+  const t = useT();
+  const router = useRouter();
+  const projects = useActiveProjects();
+  const [title, setTitle] = useState("");
+  const [projectId, setProjectId] = useState(initial ?? "");
+  async function submit() {
+    if (!title.trim()) return;
+    const tl = await createTimeline({ title, projectId: projectId || undefined });
+    closeQuickCreate();
+    router.push(`/timelines/${tl.id}`);
+  }
+  const onKey = useSubmitOnEnter(submit);
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{t("New timeline")}</DialogTitle>
+        <DialogDescription>{t("Name it, then type dated lines on the next screen. The chart draws itself.")}</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-3" onKeyDown={onKey}>
+        <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Timeline title, e.g. Q4 delivery")} dir="auto" />
+        <Select value={projectId || "__none"} onValueChange={(v) => setProjectId(v === "__none" ? "" : v)}>
+          <SelectTrigger size="sm" className="w-auto min-w-36"><SelectValue placeholder={t("Project")} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">{t("No project")}</SelectItem>
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id}><ProjectDot project={p} /> {p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <DialogFooter>
+        <Button variant="ghost" onClick={closeQuickCreate}>{t("Cancel")}</Button>
+        <Button onClick={submit} disabled={!title.trim()}>{t("Create")}</Button>
+      </DialogFooter>
+    </>
+  );
 }
 
 function PersonForm() {

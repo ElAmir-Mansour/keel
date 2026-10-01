@@ -31,6 +31,7 @@ export const STATUS_COLOR = {
 };
 
 export const CHROME = {
+  ink: "var(--viz-ink)",
   grid: "var(--viz-grid)",
   axis: "var(--viz-axis)",
   muted: "var(--viz-muted)",

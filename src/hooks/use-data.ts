@@ -1,7 +1,7 @@
 "use client";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import type { Decision, Issue, Note, Person, Project } from "@/lib/types";
+import type { Decision, Issue, Note, Person, Project, Timeline } from "@/lib/types";
 
 const EMPTY: never[] = [];
 
@@ -38,6 +38,10 @@ export function useAllNotes() {
 
 export function useAllDecisions() {
   return useLiveQuery(() => db.decisions.orderBy("seq").reverse().toArray(), [], EMPTY as Decision[]);
+}
+
+export function useAllTimelines() {
+  return useLiveQuery(() => db.timelines.orderBy("updatedAt").reverse().toArray(), [], EMPTY as Timeline[]);
 }
 
 /** Everything wikilinks can resolve against. */

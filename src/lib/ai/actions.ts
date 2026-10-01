@@ -1,8 +1,8 @@
 "use client";
 import { db } from "@/lib/db";
-import { createDecision, createIssue, createNote, createRisk, transitionIssue, updateIssue } from "@/lib/repo";
+import { addTimelineEntries, createDecision, createIssue, createNote, createRisk, createTimeline, transitionIssue, updateIssue } from "@/lib/repo";
 import { NOTE_TEMPLATES } from "@/lib/templates";
-import { issueKey, type IssueStatus, type NoteKind, type Priority, type Project, type RiskKind } from "@/lib/types";
+import { issueKey, type IssueStatus, type NoteKind, type Priority, type Project, type RiskKind, type TimelineEntry } from "@/lib/types";
 import type { ToolCall } from "./client";
 
 // What a proposed tool call would do, and how to do it once approved. Every
@@ -39,6 +39,20 @@ async function resolveIssue(key: string) {
   return issue ? { project, issue } : null;
 }
 
+function timelineEntries(v: unknown): Partial<TimelineEntry>[] {
+  if (!Array.isArray(v)) return [];
+  return (v as Record<string, unknown>[]).slice(0, 60).map((e) => ({
+    title: str(e.title),
+    start: str(e.start),
+    end: opt(e.end),
+    group: opt(e.group),
+    kind: e.kind === "milestone" ? "milestone" : undefined,
+    status: e.status === "done" || e.status === "active" || e.status === "planned" ? e.status : undefined,
+    link: opt(e.link),
+    note: opt(e.note),
+  }));
+}
+
 export function previewToolCall(call: ToolCall): ActionPreview {
   const i = call.input;
   switch (call.name) {
@@ -64,6 +78,15 @@ export function previewToolCall(call: ToolCall): ActionPreview {
     }
     case "add_risk":
       return { title: `Add ${str(i.kind) || "risk"}: ${str(i.title)}`, lines: [`Likelihood ${Number(i.likelihood)} × impact ${Number(i.impact)}`] };
+    case "create_timeline":
+    case "add_timeline_entries": {
+      const entries = Array.isArray(i.entries) ? (i.entries as Record<string, unknown>[]) : [];
+      const target = call.name === "create_timeline" ? `Create timeline: ${str(i.title)}` : `Add to timeline “${str(i.timelineTitle)}”`;
+      return {
+        title: `${target} (${entries.length} entr${entries.length === 1 ? "y" : "ies"})`,
+        lines: entries.map((e) => `${str(e.start)}${opt(e.end) ? ` → ${str(e.end)}` : ""} ${e.kind === "milestone" ? "◆ " : ""}${str(e.title)}${opt(e.group) ? ` · ${str(e.group)}` : ""}`),
+      };
+    }
     default:
       return { title: call.name, lines: [JSON.stringify(i).slice(0, 200)] };
   }
@@ -147,6 +170,23 @@ export async function executeToolCall(call: ToolCall, ctx: { projectId?: string 
         mitigation: str(i.mitigation),
       });
       return `Added ${project.key}-R${r.seq}: ${r.title}.`;
+    }
+    case "create_timeline": {
+      const project = opt(i.projectKey) ? await resolveProject(i.projectKey, ctx.projectId) : ctx.projectId ? await db.projects.get(ctx.projectId) : undefined;
+      const tl = await createTimeline({
+        title: str(i.title).trim() || "Untitled timeline",
+        description: str(i.description),
+        projectId: project?.id,
+        entries: timelineEntries(i.entries),
+      });
+      return `Created timeline “${tl.title}” with ${tl.entries.length} entries.`;
+    }
+    case "add_timeline_entries": {
+      const title = str(i.timelineTitle).trim().toLowerCase();
+      const tl = (await db.timelines.toArray()).find((x) => x.title.toLowerCase() === title) ?? (await db.timelines.toArray()).find((x) => x.title.toLowerCase().includes(title));
+      if (!tl) throw new Error(`No timeline titled “${str(i.timelineTitle)}”.`);
+      const r = await addTimelineEntries(tl.id, timelineEntries(i.entries));
+      return `Added ${r.added} and updated ${r.updated} entries in “${tl.title}”.`;
     }
     default:
       throw new Error(`Unknown tool ${call.name}.`);

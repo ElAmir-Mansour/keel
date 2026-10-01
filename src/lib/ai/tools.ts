@@ -116,6 +116,54 @@ export const AI_TOOLS: AiToolDef[] = [
   },
 ];
 
+const TIMELINE_ENTRY = {
+  type: "object",
+  properties: {
+    title: { type: "string", description: "Short, under 60 characters, in the user's language." },
+    start: { type: "string", description: "YYYY-MM-DD. For a month-long phase use its first day and set end." },
+    end: { ...NULLABLE_STRING, description: "YYYY-MM-DD inclusive for a phase or range; null for a single day." },
+    group: { ...NULLABLE_STRING, description: "Lane or category such as Design, Ops, Release; null for none." },
+    kind: { type: "string", enum: ["event", "milestone"], description: "milestone for a key moment (drawn as a diamond)." },
+    status: { type: ["string", "null"], enum: ["done", "active", "planned", null], description: "Only when the dates alone would mislead; otherwise null and it follows from today." },
+    link: { ...NULLABLE_STRING, description: "An issue key (PLAT-12), ADR-n or a note title to link, or null." },
+    note: { ...NULLABLE_STRING, description: "One line of context, or null." },
+  },
+  required: ["title", "start", "end", "group", "kind", "status", "link", "note"],
+  additionalProperties: false,
+};
+
+AI_TOOLS.push(
+  {
+    name: "create_timeline",
+    description:
+      "Propose a new timeline: a dated chronology of what happened and what comes next, drawn as a chart. Use when the user asks for a timeline, a chronology, a plan over months, or 'what happened between X and Y'. Build entries only from facts in the context or the user's message; never invent dates.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        description: { ...NULLABLE_STRING, description: "One line on what it covers, or null." },
+        projectKey: { ...NULLABLE_STRING, description: "Project key to attach to, or null." },
+        entries: { type: "array", maxItems: 60, items: TIMELINE_ENTRY },
+      },
+      required: ["title", "description", "projectKey", "entries"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "add_timeline_entries",
+    description: "Propose entries for an existing timeline, named by its title. An entry with the same title and start date as an existing one updates it.",
+    input_schema: {
+      type: "object",
+      properties: {
+        timelineTitle: { type: "string", description: "The timeline's title as it appears in the context." },
+        entries: { type: "array", maxItems: 60, items: TIMELINE_ENTRY },
+      },
+      required: ["timelineTitle", "entries"],
+      additionalProperties: false,
+    },
+  },
+);
+
 export const AI_TOOL_NAMES = AI_TOOLS.map((t) => t.name);
 
 export function toolByName(name: string) {

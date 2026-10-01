@@ -136,7 +136,9 @@
    Chart values follow the validated reference palette; dark steps are chosen
    for the dark surface, not flipped. */
 
-:root {
+/* `.light` lets an export clone resolve the paper palette while the app is dark. */
+:root, .light {
+  --viz-ink: #1f1f1d;
   --viz-surface: #fcfcfb;
   --viz-series-1: #2a78d6;
   --viz-series-2: #eb6834;
@@ -163,6 +165,7 @@
 }
 
 .dark {
+  --viz-ink: #ececea;
   --viz-surface: #1a1a19;
   --viz-series-1: #3987e5;
   --viz-series-2: #d95926;

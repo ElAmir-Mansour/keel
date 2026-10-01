@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 // Cross-cutting UI state: the command palette, the quick-create dialogs and
 // the AI panel are mounted once in the shell and opened from anywhere.
 
-export type QuickCreateKind = "issue" | "note" | "decision" | "risk" | "project" | "person";
+export type QuickCreateKind = "issue" | "note" | "decision" | "risk" | "project" | "person" | "timeline";
 
 export interface AiRequest {
   /** Free-text prompt to prefill. */

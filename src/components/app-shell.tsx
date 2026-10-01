@@ -213,6 +213,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => openQuickCreate("decision")}>{t("Decision")}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => openQuickCreate("risk")}>{t("Risk")}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openQuickCreate("timeline")}>{t("Timeline")}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => openQuickCreate("project")}>{t("Project")}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => openQuickCreate("person")}>{t("Person")}</DropdownMenuItem>
               </DropdownMenuContent>

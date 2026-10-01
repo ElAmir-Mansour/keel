@@ -15,6 +15,7 @@ import type {
   Risk,
   SavedView,
   Setting,
+  Timeline,
   Update,
 } from "./types";
 
@@ -39,6 +40,7 @@ export class KeelDB extends Dexie {
   cycles!: EntityTable<Cycle, "id">;
   views!: EntityTable<SavedView, "id">;
   noteVersions!: EntityTable<NoteVersion, "id">;
+  timelines!: EntityTable<Timeline, "id">;
 
   constructor(name = "keel") {
     super(name);
@@ -88,6 +90,10 @@ export class KeelDB extends Dexie {
     this.version(6).stores({
       noteVersions: "id, noteId, savedAt",
     });
+    // v7: timelines (entries embedded in the record).
+    this.version(7).stores({
+      timelines: "id, projectId, updatedAt",
+    });
   }
 }
 
@@ -110,6 +116,7 @@ export const TABLE_NAMES = [
   "cycles",
   "views",
   "noteVersions",
+  "timelines",
 ] as const;
 
 /** Tables that take part in sync and backups (settings and tombstones are device-local). */
@@ -126,5 +133,6 @@ export const SYNCED_TABLES = [
   "cycles",
   "views",
   "noteVersions",
+  "timelines",
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];

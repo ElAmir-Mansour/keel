@@ -51,6 +51,7 @@ const COUNT_LABELS: [string, string][] = [
   ["risks", "Risks"],
   ["people", "People"],
   ["updates", "Updates"],
+  ["timelines", "Timelines"],
 ];
 
 const SHORTCUTS: { keys: string[]; then?: string[]; what: string }[] = [
