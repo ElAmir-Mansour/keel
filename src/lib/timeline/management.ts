@@ -172,6 +172,8 @@ export interface SlideBar {
   height: number;
   label: string;
   labelInside: boolean;
+  /** Outside labels sit after the bar unless the window ends there; then before it. */
+  labelSide: "right" | "left";
   labelX: number;
   baselineX: number | null;
   slip: number | null;
@@ -319,14 +321,22 @@ export function layoutSlide(tl: Pick<Timeline, "entries" | "from" | "to">, opts:
         const x1 = clampX(parseYMD(e.end!));
         const w = Math.max(10, x1 - x0);
         const glyph = ragOf(e, opts.today) === "on" ? 0 : 24;
-        const inside = measure(e.title, fontSize) + 24 + glyph <= w;
-        const room = trackX + trackWidth - (x0 + w) - 12 - glyph;
-        const label = inside ? e.title : truncateLabel(e.title, Math.min(maxLabel, Math.max(40, room)), measure, fontSize);
+        const full = measure(e.title, fontSize);
+        const inside = full + 24 + glyph <= w;
         const slip = slipDays(e);
         const baselineX = e.baseline && slip ? xOf(e.baseline) : null;
         const slipW = slip ? measure(slipLabel(slip), 22) + 14 : 0;
-        const right = Math.max(inside ? x0 + w : x0 + w + 12 + glyph + measure(label, fontSize), baselineX ?? 0) + slipW;
-        return { e, x0, w, inside, label, slip, baselineX, left: Math.min(x0, baselineX ?? x0), right };
+        const roomRight = trackX + trackWidth - Math.max(x0 + w, baselineX ?? 0) - 12 - glyph - slipW;
+        const roomLeft = Math.min(x0, baselineX ?? x0) - trackX - 12 - glyph;
+        // Outside labels go after the bar; when the window ends there and the
+        // title would be cut, they go before it instead.
+        const side: "right" | "left" = inside || roomRight >= full || roomRight >= roomLeft ? "right" : "left";
+        const room = side === "right" ? roomRight : roomLeft;
+        const label = inside ? e.title : truncateLabel(e.title, Math.min(maxLabel, Math.max(40, room)), measure, fontSize);
+        const lw = measure(label, fontSize);
+        const left = side === "left" && !inside ? Math.min(x0, baselineX ?? x0) - 12 - glyph - lw : Math.min(x0, baselineX ?? x0);
+        const right = (inside || side === "left" ? Math.max(x0 + w, baselineX ?? 0) : Math.max(x0 + w, baselineX ?? 0) + 12 + glyph + lw) + slipW;
+        return { e, x0, w, inside, side, label, slip, baselineX, left, right };
       });
       const barRows = packRows(barItems, 12);
       const laneBars: SlideBar[] = barItems.map((it, i) => ({
@@ -339,7 +349,8 @@ export function layoutSlide(tl: Pick<Timeline, "entries" | "from" | "to">, opts:
         height: barH,
         label: it.label,
         labelInside: it.inside,
-        labelX: it.inside ? it.x0 + 12 : it.x0 + it.w + 12,
+        labelSide: it.inside ? "right" : it.side,
+        labelX: it.inside ? it.x0 + 12 : it.side === "right" ? it.x0 + it.w + 12 : Math.min(it.x0, it.baselineX ?? it.x0) - 12,
         baselineX: it.baselineX,
         slip: it.slip,
       }));

@@ -128,6 +128,17 @@ describe("slide layout", () => {
     for (const b of l.bars) expect(b.y + b.height).toBeLessThanOrEqual(l.bodyBottom);
     for (const p of l.points) expect(p.y).toBeLessThanOrEqual(l.bodyBottom);
   });
+  it("puts a bar's label before it when the window ends right after the bar", () => {
+    const l = layoutSlide(
+      { entries: [e({ id: "x", title: "Quarter-end phase", start: "2026-12-10", end: "2026-12-31", group: "Platform" })], from: "2026-09-01", to: "2026-12-31" },
+      { today: TODAY, measure: approxMeasure },
+    );
+    const bar = l.bars[0];
+    expect(bar.labelInside).toBe(false);
+    expect(bar.labelSide).toBe("left");
+    expect(bar.label).toBe("Quarter-end phase");
+    expect(bar.labelX).toBeLessThan(bar.x);
+  });
   it("marks a lane's trend against the previous review", () => {
     const prev: TimelineSnapshot = { id: "p", at: "2026-09-17", items: [{ id: "b", title: "Gateway", date: "2026-10-10", rag: "on", state: "active" }] };
     const l = layoutSlide({ entries }, { today: TODAY, measure: approxMeasure, previous: prev });

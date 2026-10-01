@@ -198,9 +198,9 @@ export function ManagementSvg({
             {b.labelInside && b.state === "planned" ? (
               <rect x={mx(mirror ? b.labelX - 6 + measure(b.label, layout.fontSize) + 12 + (b.rag !== "on" ? 24 : 0) : b.labelX - 6)} y={b.y + 4} width={measure(b.label, layout.fontSize) + 12 + (b.rag !== "on" ? 24 : 0)} height={b.height - 8} rx={4} fill="var(--viz-surface)" opacity={0.92} />
             ) : null}
-            {b.rag !== "on" ? <RagGlyph rag={b.rag} x={mx(b.labelX + 9)} y={b.y + b.height / 2} size={14} /> : null}
+            {b.rag !== "on" ? <RagGlyph rag={b.rag} x={mx(b.labelSide === "left" ? b.labelX - 9 : b.labelX + 9)} y={b.y + b.height / 2} size={14} /> : null}
             <text
-              {...tx(b.labelX + (b.rag !== "on" ? 24 : 0), "start")}
+              {...tx(b.labelX + (b.rag !== "on" ? (b.labelSide === "left" ? -24 : 24) : 0), b.labelSide === "left" ? "end" : "start")}
               y={b.y + b.height / 2}
               dominantBaseline="central"
               fontSize={layout.fontSize}
@@ -214,9 +214,10 @@ export function ManagementSvg({
               ? (() => {
                   const text = b.slip > 0 ? `+${b.slip}d` : `−${Math.abs(b.slip)}d`;
                   const tw = measure(text, 22);
-                  const after = Math.max(b.x + b.width, b.baselineX ?? 0) + 14 + (b.labelInside ? 0 : (b.rag !== "on" ? 24 : 0) + measure(b.label, layout.fontSize) + 12);
+                  const after = Math.max(b.x + b.width, b.baselineX ?? 0) + 14 + (b.labelInside || b.labelSide === "left" ? 0 : (b.rag !== "on" ? 24 : 0) + measure(b.label, layout.fontSize) + 12);
                   const fits = after + tw <= layout.trackX + layout.trackWidth;
-                  const sx = fits ? after : Math.min(b.x, b.baselineX ?? b.x) - 14;
+                  const before = Math.min(b.x, b.baselineX ?? b.x) - 14 - (b.labelSide === "left" ? (b.rag !== "on" ? 24 : 0) + measure(b.label, layout.fontSize) + 12 : 0);
+                  const sx = fits ? after : before;
                   return (
                     <text {...tx(sx, fits ? "start" : "end")} y={b.y + b.height / 2} dominantBaseline="central" fontSize={22} fontWeight={700} fill={b.slip > 0 ? RAG_FILL.off : "var(--viz-good-text)"}>
                       {text}
