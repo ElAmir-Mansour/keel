@@ -122,4 +122,13 @@ export const shell: Record<string, string> = {
   "Project {key} created": "أُنشئ المشروع {key}",
   "Person added": "أُضيف الشخص",
   "Colour {c}": "اللون {c}",
+  "Page not found": "الصفحة غير موجودة",
+  "There is nothing at this address. It may have moved, or the link may be wrong.": "لا يوجد شيء على هذا العنوان. ربما انتقل، أو ربما الرابط خاطئ.",
+  "Back to home": "العودة إلى الرئيسية",
+  "Something went wrong": "حدث خطأ ما",
+  "Keel hit an error while showing this page. Your data is stored in this browser and was not touched.": "واجه Keel خطأً أثناء عرض هذه الصفحة. بياناتك محفوظة في هذا المتصفح ولم تُمس.",
+  "Try again": "حاول مجددًا",
+  "Error reference": "مرجع الخطأ",
+  "Keel could not load": "تعذّر تحميل Keel",
+  "Reload the page. If this keeps happening, your data is still safe in this browser.": "أعد تحميل الصفحة. إذا تكرر هذا، فبياناتك لا تزال محفوظة في هذا المتصفح.",
 };

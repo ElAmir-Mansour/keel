@@ -1,6 +1,6 @@
 {
   "name": "keel",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Plans, decisions, notes and a dashboard for tech leads. Local-first, markdown, with an AI assistant that reads your vault.",
   "private": true,
   "license": "MIT",

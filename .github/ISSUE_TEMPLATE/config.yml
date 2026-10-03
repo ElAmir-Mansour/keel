@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Try the live demo
+    url: https://keel-six-amber.vercel.app
+    about: Reproduce on the latest deployment first. Click "Load sample data" on the empty dashboard.
+  - name: Report a security vulnerability
+    url: https://github.com/ElAmir-Mansour/keel/security/advisories/new
+    about: Private vulnerability reporting. Do not open a public issue for security problems.

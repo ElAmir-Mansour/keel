@@ -1,0 +1,93 @@
+name: Bug report
+description: Something in Keel does not work the way it should.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please try the latest `main` or the [live demo](https://keel-six-amber.vercel.app) first, and never paste an API key, a Supabase anon key or exported workspace data here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what Keel did instead.
+      placeholder: |
+        1. Open a project board
+        2. Drag an issue from In progress to Done
+        3. The card snaps back and the status does not change
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where Keel was running
+      options:
+        - Live demo (keel-six-amber.vercel.app)
+        - My own deployment
+        - On my machine with `pnpm local`
+        - Development server (`pnpm dev`)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The release (for example 0.3.0) or the commit on `main`.
+      placeholder: "0.3.0"
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: "Chrome 130 on macOS 15; Safari on iOS 18"
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Interface language
+      options:
+        - English
+        - Arabic (RTL)
+        - Both
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Vault / notes
+        - Issues / inbox / board / roadmap
+        - Decisions
+        - Risks
+        - Health / weekly update
+        - Dashboard charts
+        - Timelines / management view
+        - Assistant
+        - Sync
+        - Backups / export / import
+        - GitHub links
+        - Cycles / saved views
+        - PWA / offline
+        - Local folder bridge
+        - Other
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console errors or screenshots
+      description: Open the browser console and paste any errors. Remove anything private first.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: This report contains no API key, token or workspace data.
+          required: true

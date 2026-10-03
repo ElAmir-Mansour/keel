@@ -1,0 +1,57 @@
+name: Feature request
+description: Propose a change or an addition to Keel.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keel is local-first and deliberately small. The most useful requests describe a problem a tech lead has in a real week, not a feature from another tool.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and where does Keel get in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What would you like Keel to do? Sketches, example text or a rough screen are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Including how you work around it now.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Vault / notes
+        - Issues / inbox / board / roadmap
+        - Decisions
+        - Risks
+        - Health / weekly update
+        - Dashboard charts
+        - Timelines / management view
+        - Assistant
+        - Sync
+        - Backups / export / import
+        - GitHub links
+        - Cycles / saved views
+        - PWA / offline
+        - Local folder bridge
+        - Arabic / RTL
+        - Other
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: Fit
+      options:
+        - label: This works without an account or a server database (local-first).
+        - label: This works in both English and Arabic (RTL) layouts.
+        - label: I would be willing to open a pull request for it.
