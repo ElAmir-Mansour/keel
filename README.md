@@ -129,7 +129,8 @@ Everything lives in your browser's IndexedDB. Two optional layers protect it:
   email sign-in, paste the project URL and anon key into Keel, and sign in with a magic link.
   Each device keeps working offline and merges when online: last write wins per record, and
   deletes travel too. Nothing is shared with anyone else; row-level security scopes every row
-  to your user.
+  to your user. If you self-host Supabase on your own domain, add its origin to
+  `connect-src` in `next.config.ts`; the content security policy blocks unlisted origins.
 
 ### Bring your data with you
 

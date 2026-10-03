@@ -30,9 +30,10 @@ export function loadEmbedder(model: EmbeddingModelId, onProgress?: (p: Progress)
   let p = pipes.get(model);
   if (!p) {
     p = (async () => {
-      // A runtime import keeps the bundler out of it entirely.
-      const importer = new Function("u", "return import(u)") as (u: string) => Promise<TransformersModule>;
-      const mod = await importer(CDN);
+      // A plain dynamic import of a URL; the comment keeps the bundler from
+      // trying to resolve it, and unlike an eval-built importer it works under
+      // a Content-Security-Policy without 'unsafe-eval'.
+      const mod = (await import(/* webpackIgnore: true */ CDN)) as TransformersModule;
       mod.env.allowLocalModels = false;
       return mod.pipeline("feature-extraction", model, { dtype: "q8", progress_callback: (x) => onProgress?.(x as Progress) });
     })();

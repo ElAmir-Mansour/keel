@@ -1,39 +1,39 @@
 import type { NextConfig } from "next";
 
-// Content-Security-Policy is shipped REPORT-ONLY, deliberately. The browser
-// logs what the enforced policy would have blocked and blocks nothing, so
-// the sources below can be verified against real sessions before a single
-// `Content-Security-Policy` header goes out. Three things need that proof:
+// Content-Security-Policy, enforced. Every origin below is one the browser was
+// measured talking to in a full session on 2026-10-03 (dashboard, notes,
+// timelines, slide export, the on-device embedding model download and a
+// semantic search), with zero violations under the same policy in report-only
+// mode. What each entry is for:
 //
-//  - The semantic-search loader (src/lib/ai/embeddings.ts) imports
-//    @huggingface/transformers from jsDelivr at runtime through
-//    `new Function("u", "return import(u)")`. `new Function` is an eval and
-//    needs 'unsafe-eval', which this policy does not grant on purpose;
-//    'wasm-unsafe-eval' covers WebAssembly compilation only. Enforcing today
-//    would break semantic search until that loader uses a plain dynamic
-//    import() the bundler is told to leave alone.
-//  - onnxruntime-web (pulled in by transformers.js) fetches its .wasm and
-//    .mjs factory from jsDelivr, imports the factory from a blob: URL and may
-//    spawn blob: workers for threading — hence blob: in script-src and
-//    worker-src. Measured from its source, not yet from a session.
-//  - Hugging Face model files 302 from huggingface.co to a storage CDN. The
-//    legacy host is cdn-lfs.huggingface.co; measured on 2026-10-03 the
-//    redirect went to us.aws.cdn.hf.co (Xet storage), so *.hf.co is listed
-//    too. Redirect targets must be allowed as well as the first hop.
+//  - cdn.jsdelivr.net: src/lib/ai/embeddings.ts imports @huggingface/transformers
+//    at runtime through a plain `import(url)` the bundler leaves alone, and
+//    onnxruntime-web fetches its .wasm and .mjs factory from there. The factory
+//    is imported from a blob: URL and threads run as blob: workers, hence blob:
+//    in script-src and worker-src. 'wasm-unsafe-eval' lets WebAssembly compile;
+//    nothing needs 'unsafe-eval'.
+//  - huggingface.co, cdn-lfs.huggingface.co, *.hf.co: model config, tokenizer
+//    and weights; the files 302 from huggingface.co to a storage CDN under
+//    *.hf.co (measured: us.aws.cdn.hf.co), with cdn-lfs as the legacy host.
+//  - *.supabase.co over https and wss: the optional sync, a project the user
+//    owns. A self-hosted Supabase on another domain needs its origin added here.
+//  - api.github.com: the GitHub integration, called from the browser.
+//  - api.anthropic.com: only the server route calls it; the browser calls
+//    /api/ai. Listed so the policy documents every outbound destination.
+//  - vercel.live: the Vercel toolbar on preview deployments.
 //
-// Also listed: api.github.com (GitHub import, browser-side), *.supabase.co
-// over https and wss (optional sync, user-provided project), and
-// api.anthropic.com (the server route talks to it; the browser only ever
-// calls /api/ai, so it is listed for completeness). A self-hosted Supabase
-// URL would not match *.supabase.co and is one more reason not to enforce
-// without a session behind it.
-const CSP_REPORT_ONLY = [
+// 'unsafe-inline' in script-src and style-src is what Next.js needs for its
+// inline bootstrap and for next-themes; a nonce-based policy would require
+// dynamic rendering of every page. tests/e2e/csp.spec.ts fails if a main flow
+// logs a policy violation.
+const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://vercel.live",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://cdn-lfs.huggingface.co https://*.hf.co https://*.supabase.co wss://*.supabase.co https://api.github.com https://api.anthropic.com",
+  "connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://cdn-lfs.huggingface.co https://*.hf.co https://*.supabase.co wss://*.supabase.co https://api.github.com https://api.anthropic.com https://vercel.live wss://*.vercel.live",
+  "frame-src https://vercel.live",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -46,7 +46,7 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  { key: "Content-Security-Policy-Report-Only", value: CSP_REPORT_ONLY },
+  { key: "Content-Security-Policy", value: CSP },
 ];
 
 const nextConfig: NextConfig = {

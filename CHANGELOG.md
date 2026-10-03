@@ -8,6 +8,15 @@ include breaking changes to the exported JSON shape; the Dexie schema always upg
 
 ## [Unreleased]
 
+### Changed
+
+- The Content-Security-Policy is now **enforced** rather than report-only. Every origin in it was
+  measured in a full session (dashboard, notes, timelines, slide export, the on-device model
+  download and a semantic search) with zero violations, and `tests/e2e/csp.spec.ts` keeps it that
+  way. A self-hosted Supabase on another domain needs its origin added to `connect-src`.
+- The on-device embedding model is loaded with a plain dynamic `import()` the bundler leaves
+  alone instead of an eval-built importer, so the policy needs no `'unsafe-eval'`.
+
 ## [0.3.0] — 2026-10-03
 
 ### Added

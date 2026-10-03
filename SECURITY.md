@@ -84,3 +84,10 @@ Script execution through note content, wikilinks or imported files would be a vu
 - Access to data by someone who already controls the browser profile or the machine.
 - Vulnerabilities in dependencies that are not reachable from Keel; report those upstream, though
   a note here is welcome so the dependency can be updated.
+
+## Browser hardening
+
+Every response carries `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`,
+a `Permissions-Policy`, HSTS and an enforced `Content-Security-Policy` whose allowed origins are
+listed and explained in `next.config.ts`. If you self-host Supabase on your own domain, add its
+origin to `connect-src` there; an unlisted origin is blocked, not reported.
