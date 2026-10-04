@@ -21,6 +21,7 @@ import { InstallSettings } from "@/components/settings/install-settings";
 import { LocalSettings } from "@/components/settings/local-settings";
 import { GithubSettings } from "@/components/settings/github-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
+import { StorageSettings } from "@/components/settings/storage-settings";
 import { PageHeader } from "@/components/ui-bits";
 import { useIsEmptyWorkspace } from "@/hooks/use-data";
 import { useMounted } from "@/hooks/use-mounted";
@@ -249,6 +250,10 @@ export function SettingsPage() {
       </SettingsSection>
 
       <LocalSection />
+
+      <SettingsSection id="storage" title={t("Storage")} description={t("Whether this browser promises to keep Keel's data, and how much space it takes.")}>
+        <StorageSettings />
+      </SettingsSection>
 
       <SettingsSection id="backups" title={t("Automatic backups")} description={t("A JSON copy of everything, written to a folder on a schedule while Keel is open.")}>
         <BackupSettings />

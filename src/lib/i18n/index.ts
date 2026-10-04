@@ -92,7 +92,23 @@ export function useT() {
   return t;
 }
 
-/** Locale-aware number formatting (Arabic keeps Western digits for issue keys). */
+/** Arabic keeps Western digits, as issue keys do. */
+const numberLocale = () => (lang === "ar" ? "ar-EG-u-nu-latn" : "en");
+
+/** Locale-aware number formatting. */
 export function fmtNumber(n: number) {
-  return new Intl.NumberFormat(lang === "ar" ? "ar-EG-u-nu-latn" : "en").format(n);
+  return new Intl.NumberFormat(numberLocale()).format(n);
+}
+
+const BYTE_UNITS = ["kilobyte", "megabyte", "gigabyte", "terabyte"] as const;
+
+/** A size in decimal units, the way the OS reports disk space: "4.2 MB". */
+export function fmtBytes(bytes: number) {
+  let v = Math.max(0, bytes) / 1000;
+  let i = 0;
+  while (v >= 1000 && i < BYTE_UNITS.length - 1) {
+    v /= 1000;
+    i += 1;
+  }
+  return new Intl.NumberFormat(numberLocale(), { style: "unit", unit: BYTE_UNITS[i], unitDisplay: "short", maximumFractionDigits: v < 10 ? 1 : 0 }).format(v);
 }

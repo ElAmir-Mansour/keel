@@ -121,7 +121,9 @@ localhost, so a hosted deployment exposes no filesystem.
 
 ### Keep it safe: backups and sync
 
-Everything lives in your browser's IndexedDB. Two optional layers protect it:
+Everything lives in your browser's IndexedDB. The first time you write something, Keel asks the
+browser for persistent storage so it is not cleared to free up space; Settings → Storage shows
+whether the browser agreed and how much space the workspace uses. Two optional layers protect it:
 
 - **Automatic backups** (Settings → Automatic backups): pick a folder once; while Keel is open
   it writes `keel-backup-<date>.json` on a schedule and keeps the newest copies. Chrome and

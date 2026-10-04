@@ -11,6 +11,8 @@ import { bootSemantic } from "@/lib/ai/semantic";
 import { bootGithub } from "@/lib/github/service";
 import { rolloverAll } from "@/lib/cycles";
 import { bootPwa } from "@/lib/pwa";
+import { bootPersistence } from "@/lib/persistence";
+import { t } from "@/lib/i18n";
 
 /** Starts the background services once per page load and nudges about data safety. */
 export function ServicesBoot() {
@@ -25,6 +27,7 @@ export function ServicesBoot() {
     bootSemantic();
     bootGithub();
     bootPwa();
+    bootPersistence();
     void rolloverAll().then((moved) => {
       if (moved) toast(`${moved} unfinished issue${moved === 1 ? "" : "s"} rolled into the new cycle`);
     });
@@ -38,16 +41,17 @@ export function ServicesBoot() {
 
   useEffect(() => {
     if (!hasData) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       if (shouldNudge(sync.signedIn)) {
-        toast("Your data lives only in this browser", {
-          description: "Set up folder backups or sync so a cleared browser cannot take it with it.",
-          action: { label: "Settings", onClick: () => router.push("/settings#backups") },
+        // Settings → Storage repeats this wording; this toast stays the only nudge.
+        toast(t("Your data lives only in this browser"), {
+          description: t("Set up folder backups or sync so a cleared browser cannot take it with it."),
+          action: { label: t("Settings"), onClick: () => router.push("/settings#backups") },
           duration: 12000,
         });
       }
     }, 6000);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [hasData, sync.signedIn, router]);
 
   return null;

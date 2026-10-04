@@ -88,6 +88,21 @@ export const settings: Record<string, string> = {
   "Every project, issue, note, decision, risk, person and setting in this browser is deleted. There is no undo; export first if in doubt.": "سيُحذف كل مشروع ومهمة وملاحظة وقرار وخطر وشخص وإعداد في هذا المتصفح. لا يمكن التراجع؛ صدّر بياناتك أولًا إن كنت مترددًا.",
   "Delete everything": "حذف كل شيء",
 
+  // --- storage-settings.tsx ---
+  Storage: "التخزين",
+  "Whether this browser promises to keep Keel's data, and how much space it takes.": "هل يتعهّد هذا المتصفح بالاحتفاظ ببيانات Keel، وكم من المساحة تشغل.",
+  "The browser will keep Keel's data": "سيحتفظ المتصفح ببيانات Keel",
+  "Persistent. The browser will not clear Keel's data to free up space; only you can, by clearing this site's data.": "تخزين دائم. لن يمسح المتصفح بيانات Keel لتوفير المساحة؛ وحدك تستطيع ذلك بمسح بيانات هذا الموقع.",
+  "Not persistent. This browser cannot promise to keep data here, so it may clear Keel's data to free up space.": "تخزين غير دائم. لا يستطيع هذا المتصفح التعهّد بالاحتفاظ بالبيانات هنا، لذا قد يمسح بيانات Keel لتوفير المساحة.",
+  "Not persistent. The browser may clear Keel's data to free up space.": "تخزين غير دائم. قد يمسح المتصفح بيانات Keel لتوفير المساحة.",
+  "{used} used of {quota} available": "{used} مستخدمة من أصل {quota} متاحة",
+  "Asking…": "جارٍ الطلب…",
+  "Ask the browser to keep Keel's data": "اطلب من المتصفح الاحتفاظ ببيانات Keel",
+  "The browser said no for now. Browsers tend to agree once Keel is installed as an app or used often; until then, backups are what keep the data safe.":
+    "رفض المتصفح الطلب حاليًا. تميل المتصفحات إلى الموافقة بعد تثبيت Keel كتطبيق أو استخدامه كثيرًا؛ وحتى ذلك الحين، النسخ الاحتياطي هو ما يحفظ البيانات.",
+  "The browser may clear it to free up space, and Safari can clear it after a week without a visit.": "قد يمسحها المتصفح لتوفير المساحة، وقد يمسحها Safari بعد أسبوع دون زيارة.",
+  "Set up backups": "إعداد النسخ الاحتياطي",
+
   // --- backup-settings.tsx ---
   "Every hour": "كل ساعة",
   "Every 6 hours": "كل 6 ساعات",

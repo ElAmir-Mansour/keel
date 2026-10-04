@@ -8,6 +8,21 @@ include breaking changes to the exported JSON shape; the Dexie schema always upg
 
 ## [Unreleased]
 
+### Added
+
+- **Persistent storage.** The first time something is written to the workspace, Keel asks the
+  browser to keep its data rather than clear it when space runs low. After a refusal it waits a
+  week before asking on its own again, so a browser that prompts does not prompt on every visit.
+  Settings → Storage has a button to ask at any time; some browsers only agree once Keel is
+  installed or used often, so a refusal is shown as an answer, not an error.
+- Settings → Storage shows whether the data is persistent and how much space it uses. When it is
+  not, and no folder backup or sync holds a copy, it says plainly that the browser may clear the
+  data, with a link to set up backups.
+
+### Fixed
+
+- The "Your data lives only in this browser" reminder is translated into Arabic.
+
 ## [0.5.0] — 2026-10-04
 
 ### Added

@@ -131,4 +131,7 @@ export const shell: Record<string, string> = {
   "Error reference": "مرجع الخطأ",
   "Keel could not load": "تعذّر تحميل Keel",
   "Reload the page. If this keeps happening, your data is still safe in this browser.": "أعد تحميل الصفحة. إذا تكرر هذا، فبياناتك لا تزال محفوظة في هذا المتصفح.",
+  // services-boot.tsx; Settings → Storage repeats both.
+  "Your data lives only in this browser": "بياناتك موجودة في هذا المتصفح فقط",
+  "Set up folder backups or sync so a cleared browser cannot take it with it.": "فعّل النسخ الاحتياطي إلى مجلد أو المزامنة كي لا تضيع بياناتك إذا مُسح المتصفح.",
 };
