@@ -60,7 +60,7 @@ export function previewToolCall(call: ToolCall): ActionPreview {
       const issues = Array.isArray(i.issues) ? (i.issues as Record<string, unknown>[]) : [];
       return {
         title: `Create ${issues.length} issue${issues.length === 1 ? "" : "s"}${opt(i.projectKey) ? ` in ${str(i.projectKey)}` : ""}`,
-        lines: issues.map((x) => `${str(x.title)}${opt(x.priority) && x.priority !== "none" ? ` · ${str(x.priority)}` : ""}${opt(x.dueDate) ? ` · due ${str(x.dueDate)}` : ""}`),
+        lines: issues.map((x) => `${str(x.title)}${opt(x.priority) && x.priority !== "none" ? ` · ${str(x.priority)}` : ""}${opt(x.dueDate) ? ` · due ${str(x.dueDate)}` : ""}${typeof x.points === "number" ? ` · ${x.points} pts` : ""}`),
       };
     }
     case "log_decision":
@@ -73,6 +73,7 @@ export function previewToolCall(call: ToolCall): ActionPreview {
         opt(i.priority) ? `priority → ${str(i.priority)}` : null,
         opt(i.assignee) ? `assignee → ${str(i.assignee)}` : null,
         opt(i.dueDate) ? `due → ${str(i.dueDate)}` : null,
+        typeof i.points === "number" ? `points → ${i.points}` : null,
       ].filter(Boolean) as string[];
       return { title: `Update ${str(i.key)}`, lines: changes.length ? changes : ["No changes"] };
     }
@@ -111,6 +112,7 @@ export async function executeToolCall(call: ToolCall, ctx: { projectId?: string 
           priority: (opt(x.priority) as Priority | undefined) ?? "none",
           dueDate: opt(x.dueDate),
           status: (opt(x.status) as IssueStatus | undefined) ?? "backlog",
+          estimate: typeof x.points === "number" && x.points >= 0 ? x.points : undefined,
         });
         keys.push(issueKey(project, created));
       }
@@ -147,6 +149,7 @@ export async function executeToolCall(call: ToolCall, ctx: { projectId?: string 
       const patch: Record<string, unknown> = {};
       if (opt(i.priority)) patch.priority = str(i.priority);
       if (opt(i.dueDate)) patch.dueDate = str(i.dueDate);
+      if (typeof i.points === "number" && i.points >= 0) patch.estimate = i.points;
       if (opt(i.assignee)) {
         const name = str(i.assignee).toLowerCase();
         const person = (await db.people.toArray()).find((p) => p.name.toLowerCase() === name || p.name.toLowerCase().startsWith(name));

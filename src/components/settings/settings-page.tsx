@@ -16,6 +16,7 @@ import { SyncSettings } from "@/components/settings/sync-settings";
 import { ImportSettings } from "@/components/settings/import-settings";
 import { DigestSettings } from "@/components/settings/digest-settings";
 import { SemanticSettings } from "@/components/settings/semantic-settings";
+import { PointsSettings } from "@/components/points/team-points";
 import { InstallSettings } from "@/components/settings/install-settings";
 import { LocalSettings } from "@/components/settings/local-settings";
 import { GithubSettings } from "@/components/settings/github-settings";
@@ -52,6 +53,7 @@ const COUNT_LABELS: [string, string][] = [
   ["people", "People"],
   ["updates", "Updates"],
   ["timelines", "Timelines"],
+  ["kpis", "KPIs"],
 ];
 
 const SHORTCUTS: { keys: string[]; then?: string[]; what: string }[] = [
@@ -287,6 +289,10 @@ export function SettingsPage() {
             </TableBody>
           </Table>
         </div>
+      </SettingsSection>
+
+      <SettingsSection id="points" title={t("Points and bonuses")} description={t("How issues are sized, and how KPI scores turn into bonus suggestions.")}>
+        <PointsSettings />
       </SettingsSection>
 
       <SettingsSection id="ai" title={t("AI assistant")} description={t("Optional. Nothing is sent anywhere until you ask it something.")}>

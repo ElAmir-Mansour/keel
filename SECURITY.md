@@ -88,6 +88,8 @@ Script execution through note content, wikilinks or imported files would be a vu
 ## Browser hardening
 
 Every response carries `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`,
-a `Permissions-Policy`, HSTS and an enforced `Content-Security-Policy` whose allowed origins are
-listed and explained in `next.config.ts`. If you self-host Supabase on your own domain, add its
-origin to `connect-src` there; an unlisted origin is blocked, not reported.
+a `Permissions-Policy`, HSTS and an enforced `Content-Security-Policy` explained in
+`next.config.ts`. Scripts load only from this site and the listed CDN. Connections may go to any
+https origin and to `localhost`, because the assistant can call any AI provider or a local model
+from the browser; a plain-http service elsewhere on your network is reached through Keel's own
+relay when Keel runs on your machine.

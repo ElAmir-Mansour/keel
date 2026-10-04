@@ -12,6 +12,7 @@ import { fmtDate } from "@/lib/dates";
 import { useT } from "@/lib/i18n";
 import { isOpen } from "@/lib/metrics";
 import { useUi } from "@/lib/ui-store";
+import { TeamPoints } from "@/components/points/team-points";
 
 /** /team — everyone you assign work to or meet 1:1. */
 export function PeopleList() {
@@ -95,6 +96,7 @@ export function PeopleList() {
           })}
         </ul>
       )}
+      {people?.length ? <TeamPoints /> : null}
     </>
   );
 }

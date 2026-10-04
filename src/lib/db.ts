@@ -7,10 +7,13 @@ import type {
   Embedding,
   Issue,
   IssueEvent,
+  Kpi,
   Milestone,
   Note,
   NoteVersion,
   Person,
+  PointEntry,
+  PointRules,
   Project,
   Risk,
   SavedView,
@@ -41,6 +44,9 @@ export class KeelDB extends Dexie {
   views!: EntityTable<SavedView, "id">;
   noteVersions!: EntityTable<NoteVersion, "id">;
   timelines!: EntityTable<Timeline, "id">;
+  kpis!: EntityTable<Kpi, "id">;
+  pointEntries!: EntityTable<PointEntry, "id">;
+  pointRules!: EntityTable<PointRules, "id">;
 
   constructor(name = "keel") {
     super(name);
@@ -94,6 +100,12 @@ export class KeelDB extends Dexie {
     this.version(7).stores({
       timelines: "id, projectId, updatedAt",
     });
+    // v8: per-person KPIs, the points ledger (adjustments and bonuses) and the rules.
+    this.version(8).stores({
+      kpis: "id, personId, updatedAt",
+      pointEntries: "id, personId, issueId, kind, status, at, updatedAt",
+      pointRules: "id, updatedAt",
+    });
   }
 }
 
@@ -117,6 +129,9 @@ export const TABLE_NAMES = [
   "views",
   "noteVersions",
   "timelines",
+  "kpis",
+  "pointEntries",
+  "pointRules",
 ] as const;
 
 /** Tables that take part in sync and backups (settings and tombstones are device-local). */
@@ -134,5 +149,8 @@ export const SYNCED_TABLES = [
   "views",
   "noteVersions",
   "timelines",
+  "kpis",
+  "pointEntries",
+  "pointRules",
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];

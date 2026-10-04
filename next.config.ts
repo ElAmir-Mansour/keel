@@ -16,10 +16,16 @@ import type { NextConfig } from "next";
 //    and weights; the files 302 from huggingface.co to a storage CDN under
 //    *.hf.co (measured: us.aws.cdn.hf.co), with cdn-lfs as the legacy host.
 //  - *.supabase.co over https and wss: the optional sync, a project the user
-//    owns. A self-hosted Supabase on another domain needs its origin added here.
+//    owns; https covers a self-hosted one too (wss is listed for realtime).
 //  - api.github.com: the GitHub integration, called from the browser.
-//  - api.anthropic.com: only the server route calls it; the browser calls
-//    /api/ai. Listed so the policy documents every outbound destination.
+//  - AI providers: the assistant can call any provider the person picks
+//    straight from the browser (OpenAI, Gemini, OpenRouter, a company gateway,
+//    an OpenAI-compatible server they run), so connect-src allows any https
+//    origin, plus http on localhost and 127.0.0.1 for Ollama and LM Studio,
+//    which is what lets the assistant work with no internet. Scripts stay
+//    locked to the list above, so a connection cannot load code. A local model
+//    on another machine of the LAN (plain http) is reached through Keel's own
+//    relay when Keel runs locally.
 //  - vercel.live: the Vercel toolbar on preview deployments.
 //
 // 'unsafe-inline' in script-src and style-src is what Next.js needs for its
@@ -32,7 +38,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://cdn-lfs.huggingface.co https://*.hf.co https://*.supabase.co wss://*.supabase.co https://api.github.com https://api.anthropic.com https://vercel.live wss://*.vercel.live",
+  "connect-src 'self' https: http://localhost:* http://127.0.0.1:* wss://*.supabase.co wss://*.vercel.live",
   "frame-src https://vercel.live",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",

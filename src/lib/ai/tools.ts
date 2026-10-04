@@ -37,8 +37,9 @@ export const AI_TOOLS: AiToolDef[] = [
               priority: { ...PRIORITY, description: "Only when the user signals urgency; otherwise none." },
               dueDate: { ...NULLABLE_STRING, description: "YYYY-MM-DD or null." },
               status: { ...STATUS, description: "Usually backlog; todo when the user says it is next." },
+              points: { type: ["number", "null"], description: "Story points when the user gives a size (1, 2, 3, 5, 8, 13), otherwise null. Never guess." },
             },
-            required: ["title", "description", "priority", "dueDate", "status"],
+            required: ["title", "description", "priority", "dueDate", "status", "points"],
             additionalProperties: false,
           },
         },
@@ -83,7 +84,7 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "update_issue",
-    description: "Propose a change to an existing issue identified by its key (PLAT-12): status, priority, assignee name or due date. Leave a field null to keep it.",
+    description: "Propose a change to an existing issue identified by its key (PLAT-12): status, priority, assignee name, due date or points. Leave a field null to keep it.",
     input_schema: {
       type: "object",
       properties: {
@@ -92,8 +93,9 @@ export const AI_TOOLS: AiToolDef[] = [
         priority: { type: ["string", "null"], enum: ["none", "low", "medium", "high", "urgent", null] },
         assignee: { ...NULLABLE_STRING, description: "Person's name as it appears in the workspace, or null." },
         dueDate: { ...NULLABLE_STRING, description: "YYYY-MM-DD, or null." },
+        points: { type: ["number", "null"], description: "New story points, or null to keep them. Points lock once work starts; a locked issue keeps its points." },
       },
-      required: ["key", "status", "priority", "assignee", "dueDate"],
+      required: ["key", "status", "priority", "assignee", "dueDate", "points"],
       additionalProperties: false,
     },
   },

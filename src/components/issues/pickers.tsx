@@ -21,6 +21,7 @@ import { transitionIssue, updateIssue } from "@/lib/repo";
 import { ISSUE_STATUSES, PRIORITIES, type Cycle, type Issue, type IssueStatus, type Milestone, type Priority } from "@/lib/types";
 import { PersonAvatar, PriorityIcon, StatusIcon, priorityLabel, statusLabel } from "@/components/ui-bits";
 import { safeWrite } from "./issue-utils";
+import { announceKpis } from "@/components/points/announce";
 
 // Property pickers write immediately through repo.ts. `full` renders a
 // labelled, full-width trigger for the detail sidebar; the default is a
@@ -125,7 +126,7 @@ export function AssigneePicker({ issue, full, className }: PickerProps) {
           value={issue.assigneeId ?? NONE}
           onValueChange={(v) => {
             const next = v === NONE ? undefined : v;
-            if (next !== issue.assigneeId) void safeWrite(() => updateIssue(issue.id, { assigneeId: next }));
+            if (next !== issue.assigneeId) void safeWrite(() => updateIssue(issue.id, { assigneeId: next }).then(() => announceKpis(issue.id)));
           }}
         >
           <DropdownMenuRadioItem value={NONE}>

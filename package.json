@@ -1,6 +1,6 @@
 {
   "name": "keel",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Plans, decisions, notes and a dashboard for tech leads. Local-first, markdown, with an AI assistant that reads your vault.",
   "private": true,
   "license": "MIT",
@@ -28,7 +28,6 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

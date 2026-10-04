@@ -27,7 +27,7 @@ import { updateNote } from "@/lib/repo";
 import { useUi, type AiRequest } from "@/lib/ui-store";
 import { cn } from "@/lib/utils";
 import { useLang, useT } from "@/lib/i18n";
-import { AiError, streamTurn, useAiModel } from "@/lib/ai/client";
+import { AiError, configLabel, streamTurn, useAiConfig } from "@/lib/ai/client";
 import { executeToolCall } from "@/lib/ai/actions";
 import { AI_TOOL_NAMES } from "@/lib/ai/tools";
 import { SourceList, ToolCallCards, withCitations, type ToolCallState } from "@/components/ai/ai-tools";
@@ -40,7 +40,7 @@ import {
   type Source,
   workspaceOverview,
 } from "@/lib/ai/context";
-import { modelLabel, type AiChatMessage, type AiContentBlock, type AiErrorCode } from "@/lib/ai/models";
+import { type AiChatMessage, type AiContentBlock, type AiErrorCode } from "@/lib/ai/models";
 import { ACTION_LABELS, ACTION_PROMPTS, buildSystem, type AiAction } from "@/lib/ai/prompts";
 import { MarkdownView } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
@@ -411,7 +411,7 @@ interface PanelBodyProps {
 function PanelBody(p: PanelBodyProps) {
   const { messages, attach, setAttach, searchVault, setSearchVault, draft, setDraft, ctx, busy, run, stop, retry, newChat, decide, decideAll } = p;
   const t = useT();
-  const model = useAiModel();
+  const aiConfig = useAiConfig();
   const note = useLiveQuery(() => (attach.noteId ? db.notes.get(attach.noteId) : undefined), [attach.noteId]);
   const project = useLiveQuery(() => (attach.projectId ? db.projects.get(attach.projectId) : undefined), [attach.projectId]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -453,7 +453,7 @@ function PanelBody(p: PanelBodyProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge variant="outline" className="font-normal">
-                {modelLabel(model)}
+                {configLabel(aiConfig)}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>{t("Change the model in Settings")}</TooltipContent>
@@ -565,7 +565,7 @@ function PanelBody(p: PanelBodyProps) {
                 </Button>
               ))}
             </div>
-            <p className="text-xs">{t("Nothing is sent until you press send. Only the context listed above goes to Anthropic.")}</p>
+            <p className="text-xs">{aiConfig.def.local ? t("Nothing is sent until you press send. The model runs on your own machine, so nothing leaves it.") : t("Nothing is sent until you press send. Only the context listed above goes to {provider}.", { provider: aiConfig.def.label.replace(/ \(.*\)$/, "") })}</p>
           </div>
         )}
       </div>

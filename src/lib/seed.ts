@@ -8,9 +8,11 @@ import type {
   Issue,
   IssueEvent,
   IssueStatus,
+  Kpi,
   Milestone,
   Note,
   Person,
+  PointEntry,
   Priority,
   Project,
   Risk,
@@ -33,6 +35,8 @@ function mulberry32(a: number) {
 }
 
 const rand = mulberry32(20260927);
+// Points use their own sequence so adding them did not change the rest of the sample.
+const randPts = mulberry32(20261004);
 const pick = <T,>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
 const id = () => nanoid(12);
 
@@ -231,6 +235,13 @@ export async function seedSample() {
         createdAt: createdAt.toISOString(),
         updatedAt: t.toISOString(),
       };
+      // Points on most issues past triage, locked once work started; done
+      // issues get a due date near when they finished so delivery KPIs have data.
+      if (status !== "triage" && randPts() < 0.9) {
+        issue.estimate = [1, 2, 3, 3, 5, 5, 8][Math.floor(randPts() * 7)];
+        if (startedAt || status === "done") issue.lockedPoints = issue.estimate;
+      }
+      if (status === "done" && completedAt && randPts() < 0.85) issue.dueDate = ymd(addDays(new Date(completedAt), Math.floor(randPts() * 7) - 2));
       // Patch event issue ids for this issue (they were pushed with "").
       for (const e of events) if (e.issueId === "") e.issueId = issue.id;
       issues.push(issue);
@@ -562,9 +573,44 @@ Agreed she leads audit and events ([[ADR-2]]); Omar picks up review of backend P
     },
   ];
 
+  // KPIs for three of the four engineers (the fourth shows the empty state),
+  // scored per quarter, and one manual adjustment with its reason.
+  const kpi = (personId: string, over: Partial<Kpi> & Pick<Kpi, "name" | "metric" | "target" | "weight">): Kpi => ({
+    id: id(),
+    personId,
+    direction: over.metric === "cycle_time_median" || over.metric === "reopen_rate" || over.metric === "review_wait" ? "lower" : "higher",
+    cadence: "quarter",
+    createdAt: subDays(now, 40).toISOString(),
+    updatedAt: subDays(now, 40).toISOString(),
+    ...over,
+  });
+  const quarterKey = `${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`;
+  const kpis: Kpi[] = [
+    kpi(people[0].id, { name: "Points delivered", metric: "points_delivered", target: 20, stretch: 30, weight: 50 }),
+    kpi(people[0].id, { name: "On-time delivery", metric: "on_time_rate", target: 85, weight: 30, minSample: 2 }),
+    kpi(people[0].id, { name: "Reopen rate", metric: "reopen_rate", target: 10, weight: 20, minSample: 2 }),
+    kpi(people[1].id, { name: "Points delivered", metric: "points_delivered", target: 15, weight: 60 }),
+    kpi(people[1].id, { name: "Cycle time", metric: "cycle_time_median", target: 3, weight: 40, minSample: 2 }),
+    kpi(people[2].id, { name: "Points delivered", metric: "points_delivered", target: 15, weight: 50, filter: { projectIds: [plat.id] } }),
+    kpi(people[2].id, { name: "Runbooks written", metric: "manual", target: 3, weight: 50, unit: "runbooks", manual: { [quarterKey]: 2 } }),
+  ];
+  const pointEntries: PointEntry[] = [
+    {
+      id: id(),
+      personId: people[0].id,
+      kind: "adjustment",
+      amount: 3,
+      reason: "Led the staging outage post-mortem; no issue tracks it",
+      status: "approved",
+      at: subDays(now, 1).toISOString(),
+      createdAt: subDays(now, 1).toISOString(),
+      updatedAt: subDays(now, 1).toISOString(),
+    },
+  ];
+
   await db.transaction(
     "rw",
-    [db.people, db.projects, db.milestones, db.issues, db.issueEvents, db.risks, db.decisions, db.notes, db.updates, db.timelines, db.settings],
+    [db.people, db.projects, db.milestones, db.issues, db.issueEvents, db.risks, db.decisions, db.notes, db.updates, db.timelines, db.kpis, db.pointEntries, db.settings],
     async () => {
       await db.people.bulkAdd(people);
       await db.projects.bulkAdd([plat, bill]);
@@ -576,6 +622,8 @@ Agreed she leads audit and events ([[ADR-2]]); Omar picks up review of backend P
       await db.notes.bulkAdd([...docNotes, ...notes]);
       await db.updates.bulkAdd(updates);
       await db.timelines.bulkAdd(timelines);
+      await db.kpis.bulkAdd(kpis);
+      await db.pointEntries.bulkAdd(pointEntries);
       // Sample records are back-dated; make the next sync a full merge.
       await db.settings.where("key").startsWith("sync.cursor").delete();
     },

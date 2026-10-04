@@ -16,6 +16,9 @@ import { ISSUE_STATUSES, NOTE_KINDS, PRIORITIES, PROJECT_COLORS, RISK_KINDS, typ
 import { useUi } from "@/lib/ui-store";
 import { StatusIcon, PriorityIcon, ProjectDot } from "@/components/ui-bits";
 import { todayYMD } from "@/lib/dates";
+import { announceKpis } from "@/components/points/announce";
+import { usePointRules } from "@/hooks/use-points";
+import { ESTIMATION_SCALES } from "@/lib/types";
 
 // One dialog for every "New …" action so creation feels the same everywhere:
 // title first, sensible defaults, Enter to save, ⌘Enter from a textarea.
@@ -62,6 +65,9 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
   const [priority, setPriority] = useState<Priority>("none");
   const [assigneeId, setAssigneeId] = useState<string>("");
   const [dueDate, setDueDate] = useState("");
+  const [points, setPoints] = useState<number | undefined>(undefined);
+  const rules = usePointRules();
+  const scale = ESTIMATION_SCALES.find((s) => s.value === rules.scale) ?? ESTIMATION_SCALES[0];
   const [multi, setMulti] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -74,10 +80,11 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
         toast.success(t("Created {n} issues", { n: created.length }));
         closeQuickCreate();
       } else {
-        const issue = await createIssue({ projectId, title, description, status, priority, assigneeId: assigneeId || undefined, dueDate: dueDate || undefined });
+        const issue = await createIssue({ projectId, title, description, status, priority, assigneeId: assigneeId || undefined, dueDate: dueDate || undefined, estimate: points });
         const p = projects.find((x) => x.id === projectId);
         toast.success(t("Created {key}", { key: `${p?.key}-${issue.seq}` }), { action: { label: t("Open issue"), onClick: () => router.push(`/projects/${projectId}/issues/${issue.seq}`) } });
         closeQuickCreate();
+        if (issue.assigneeId) void announceKpis(issue.id);
       }
     } finally {
       setBusy(false);
@@ -129,7 +136,7 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
             </SelectContent>
           </Select>
           <Select value={assigneeId || "__none"} onValueChange={(v) => setAssigneeId(v === "__none" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-auto"><SelectValue placeholder={t("Assignee")} /></SelectTrigger>
+            <SelectTrigger size="sm" className="w-auto" aria-label={t("Assignee")}><SelectValue placeholder={t("Assignee")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__none">{t("Unassigned")}</SelectItem>
               {people.map((p) => (
@@ -149,6 +156,22 @@ function IssueForm({ projectId: initial }: { projectId?: string }) {
             <Label htmlFor="due" className="text-xs text-muted-foreground">{t("Due")}</Label>
             <Input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-8 w-auto" />
           </div>
+          {!multi ? (
+            <div className="flex items-center gap-1" role="group" aria-label={t("Points")}>
+              <span className="me-1 text-xs text-muted-foreground">{t("Points")}</span>
+              {scale.points.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  aria-pressed={points === p.value}
+                  onClick={() => setPoints((cur) => (cur === p.value ? undefined : p.value))}
+                  className={`h-7 min-w-7 rounded-md border px-1.5 text-xs tabular-nums ${points === p.value ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setMulti((m) => !m)}>
             {multi ? t("Single issue") : t("Paste a list → many issues")}
           </button>

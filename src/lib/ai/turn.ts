@@ -40,7 +40,7 @@ export class TurnAccumulator {
         this.textBlock = null;
         const call = { id: ev.id, name: ev.name, input: ev.input };
         this.result.toolCalls.push(call);
-        this.result.blocks.push({ type: "tool_use", ...call });
+        this.result.blocks.push({ type: "tool_use", ...call, ...(ev.signature ? { signature: ev.signature } : {}) });
         this.handlers.onToolCall?.(call);
         break;
       }
@@ -51,6 +51,11 @@ export class TurnAccumulator {
       case "redacted_thinking":
         this.textBlock = null;
         this.result.blocks.push({ type: "redacted_thinking", data: ev.data });
+        break;
+      case "provider_state":
+        // Also ends the text block, so text either side replays as separate messages.
+        this.textBlock = null;
+        this.result.blocks.push({ type: "provider_state", provider: ev.provider, data: ev.data });
         break;
       case "stop":
         this.result.stopReason = ev.reason;

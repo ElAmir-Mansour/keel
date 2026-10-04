@@ -21,7 +21,8 @@ import { backlinksTo } from "@/lib/wikilinks";
 import { GithubLinks } from "@/components/issues/github-links";
 import { MarkdownEditor } from "@/components/markdown";
 import { EmptyState, IssueKey, KindBadge, Section, StatusIcon, statusLabel } from "@/components/ui-bits";
-import { AssigneePicker, CyclePicker, DueDatePicker, EstimateInput, LabelsEditor, MilestonePicker, PriorityPicker, StatusPicker } from "./pickers";
+import { AssigneePicker, CyclePicker, DueDatePicker, LabelsEditor, MilestonePicker, PriorityPicker, StatusPicker } from "./pickers";
+import { CreditsEditor, KpiLinks, PointsInput } from "@/components/points/issue-points";
 import { isEditableTarget, inOverlay, issueHref, safeWrite, useIssueEvents, useProjectCycles, useProjectIssues, useProjectMilestones } from "./issue-utils";
 
 export function IssueDetailView() {
@@ -160,7 +161,9 @@ function IssueDetail({ issue, project }: { issue: Issue; project: Project | null
             <Property label={t("Milestone")}><MilestonePicker issue={issue} milestones={milestones} full /></Property>
             {project?.cycleConfig?.enabled ? <Property label={t("Cycle")}><CyclePicker issue={issue} cycles={cycles} full /></Property> : null}
             <Property label={t("Due date")}><DueDatePicker issue={issue} full /></Property>
-            <Property label={t("Estimate")}><EstimateInput issue={issue} /></Property>
+            <Property label={t("Points")} align="start"><PointsInput issue={issue} /></Property>
+            <Property label={t("Earned by")} align="start"><CreditsEditor issue={issue} /></Property>
+            <Property label={t("Counts toward")} align="start"><KpiLinks issue={issue} /></Property>
             <Property label={t("Labels")} align="start"><LabelsEditor issue={issue} className="min-h-7 rounded-lg border px-2 py-1" /></Property>
           </dl>
 

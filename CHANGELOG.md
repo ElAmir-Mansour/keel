@@ -8,12 +8,47 @@ include breaking changes to the exported JSON shape; the Dexie schema always upg
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-04
+
+### Added
+
+- **Any AI provider.** The assistant works with Anthropic, OpenAI, Google Gemini, OpenRouter,
+  Groq, Mistral, DeepSeek, xAI, any OpenAI-compatible endpoint, and models on your own machine
+  through Ollama or LM Studio, which need no internet at all. Four fetch-based adapters (Anthropic
+  Messages, OpenAI Responses, OpenAI-compatible Chat Completions, Gemini generateContent) stream
+  the same events, tool calls included, with no SDK. One key, model and endpoint per provider,
+  stored only in the browser; model lists load from each provider.
+- Cloud providers go through Keel's relay or, if you prefer, directly from the browser. Local and
+  custom endpoints are called from the browser on the web, and through Keel's own server when
+  Keel runs on your machine, so offline models work without CORS set-up. The relay never fetches
+  an address the browser chose, except a local one when Keel itself runs locally.
+- Operators can provide a shared key per provider (`OPENAI_API_KEY`, `GEMINI_API_KEY` and so on)
+  behind the existing `KEEL_ALLOW_SERVER_KEY=true` opt-in.
+- **Points.** An estimation scale for the workspace (Fibonacci, linear, powers of two or T-shirt
+  sizes) with quick picks on every issue and in the new-issue dialog. Points lock when work starts,
+  are earned when the issue is done and reversed if it is reopened; re-estimating after the start
+  needs a reason and is recorded. Points can be split between several people.
+- **KPIs per person.** Points delivered, commitment kept, on-time delivery, cycle time, review
+  wait, reopen rate, or a manual result, each with a target, an optional stretch goal, a weight,
+  a monthly or quarterly cadence, and a filter by project, label or priority. An issue shows the
+  KPIs it counts toward, can be linked to one its filter misses, and assigning it says so.
+- **Scorecard** on every person: each KPI against target with a pace marker for the running period,
+  a weighted score capped at 150% with rates that have too few items left out visibly, a projected
+  end-of-period score, points earned, and a ledger of earned, reversed, adjusted and bonus points.
+  A starter set of KPIs is one click; a summary copies into a 1:1 note.
+- **Bonuses.** Tiers turn a high KPI score into a suggested number of extra points, drafted for you
+  to approve or decline; a payout multiplier follows a threshold–target–stretch curve blended with
+  the team's score. Manual adjustments always carry a reason, and decided entries are never deleted.
+- The People page shows the quarter's points, score and pace for everyone, by name, never ranked.
+- The assistant can set points when it creates or updates issues.
+
 ### Changed
 
 - The Content-Security-Policy is now **enforced** rather than report-only. Every origin in it was
   measured in a full session (dashboard, notes, timelines, slide export, the on-device model
   download and a semantic search) with zero violations, and `tests/e2e/csp.spec.ts` keeps it that
-  way. A self-hosted Supabase on another domain needs its origin added to `connect-src`.
+  way. Scripts load only from this site and the listed CDN; connections may go to any https origin
+  and to `localhost`, so the assistant can reach any provider or a local model from the browser.
 - The on-device embedding model is loaded with a plain dynamic `import()` the bundler leaves
   alone instead of an eval-built importer, so the policy needs no `'unsafe-eval'`.
 

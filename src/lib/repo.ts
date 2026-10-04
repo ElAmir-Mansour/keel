@@ -2,15 +2,20 @@ import { nanoid } from "nanoid";
 import { db } from "./db";
 import { nowISO, todayYMD } from "./dates";
 import { noteFolder } from "./types";
+import { DEFAULT_RULES } from "./points";
 import type {
   Cycle,
   Decision,
   Health,
   Issue,
+  IssueCredit,
   IssueStatus,
+  Kpi,
   Milestone,
   Note,
   Person,
+  PointEntry,
+  PointRules,
   Project,
   Risk,
   SavedView,
@@ -184,6 +189,7 @@ export async function createIssue(
       order: count,
       startedAt: status === "in_progress" || status === "in_review" ? now : undefined,
       completedAt: status === "done" ? now : undefined,
+      lockedPoints: input.estimate !== undefined && (status === "in_progress" || status === "in_review" || status === "done") ? input.estimate : undefined,
       createdAt: now,
       updatedAt: now,
     };
@@ -218,6 +224,10 @@ export async function transitionIssue(
     if (opts.order !== undefined) patch.order = opts.order;
     if ((to === "in_progress" || to === "in_review") && !issue.startedAt) {
       patch.startedAt = at;
+    }
+    // The estimate when work starts is what finishing earns; later edits do not change it.
+    if ((to === "in_progress" || to === "in_review" || to === "done") && issue.lockedPoints === undefined && issue.estimate !== undefined) {
+      patch.lockedPoints = issue.estimate;
     }
     if (to === "done") patch.completedAt = at;
     if (issue.status === "done" && to !== "done") patch.completedAt = undefined;
@@ -489,9 +499,22 @@ export async function updatePerson(pid: string, patch: Partial<Person>) {
 }
 
 export async function deletePerson(pid: string) {
-  await db.transaction("rw", [db.people, db.issues, db.risks, db.projects, db.deletions], async () => {
+  await db.transaction("rw", [db.people, db.issues, db.risks, db.projects, db.deletions, db.kpis, db.pointEntries], async () => {
     const now = nowISO();
     await db.issues.where({ assigneeId: pid }).modify({ assigneeId: undefined, updatedAt: now });
+    await db.issues
+      .filter((i) => (i.credits ?? []).some((c) => c.personId === pid))
+      .modify((i: Issue) => {
+        i.credits = (i.credits ?? []).filter((c) => c.personId !== pid);
+        if (!i.credits.length) i.credits = undefined;
+        i.updatedAt = now;
+      });
+    const kpiIds = (await db.kpis.where({ personId: pid }).primaryKeys()) as string[];
+    await tombstone("kpis", kpiIds);
+    await db.kpis.bulkDelete(kpiIds);
+    const entryIds = (await db.pointEntries.where({ personId: pid }).primaryKeys()) as string[];
+    await tombstone("pointEntries", entryIds);
+    await db.pointEntries.bulkDelete(entryIds);
     await db.risks.where({ ownerId: pid }).modify({ ownerId: undefined, updatedAt: now });
     await db.projects.where({ leadId: pid }).modify({ leadId: undefined, updatedAt: now });
     await tombstone("people", [pid]);
@@ -684,4 +707,142 @@ export async function deleteTimeline(tid: string) {
     await tombstone("timelines", [tid]);
     await db.timelines.delete(tid);
   });
+}
+
+// ----- points and KPIs -------------------------------------------------------
+
+/** Who earns an issue's points. An empty list means "the assignee, all of it". */
+export async function setCredits(iid: string, credits: IssueCredit[]) {
+  const clean = credits.filter((c) => c.personId && c.share > 0);
+  await db.issues.update(iid, { credits: clean.length ? clean : undefined, updatedAt: nowISO() });
+}
+
+export async function linkIssueKpi(iid: string, kid: string, linked: boolean) {
+  await db.transaction("rw", db.issues, async () => {
+    const i = await db.issues.get(iid);
+    if (!i) return;
+    const set = new Set(i.kpiIds ?? []);
+    if (linked) set.add(kid);
+    else set.delete(kid);
+    await db.issues.update(iid, { kpiIds: set.size ? [...set] : undefined, updatedAt: nowISO() });
+  });
+}
+
+/**
+ * Change what finishing an issue earns after work started. Always with a
+ * reason, and recorded in the ledger so the change is visible later.
+ */
+export async function relockPoints(iid: string, points: number, reason: string) {
+  await db.transaction("rw", [db.issues, db.pointEntries], async () => {
+    const i = await db.issues.get(iid);
+    if (!i) return;
+    const now = nowISO();
+    const before = i.lockedPoints ?? i.estimate ?? 0;
+    await db.issues.update(iid, { lockedPoints: points, estimate: points, updatedAt: now });
+    const owner = i.credits?.[0]?.personId ?? i.assigneeId;
+    if (owner) {
+      await db.pointEntries.add({ id: id(), personId: owner, issueId: iid, kind: "relock", amount: points - before, reason: reason.trim() || "Re-estimated", status: "approved", at: now, createdAt: now, updatedAt: now });
+    }
+  });
+}
+
+export async function createKpi(input: Pick<Kpi, "personId" | "name" | "metric" | "direction" | "target" | "cadence" | "weight"> & Partial<Pick<Kpi, "stretch" | "filter" | "minSample" | "unit">>) {
+  const now = nowISO();
+  const k: Kpi = {
+    id: id(),
+    personId: input.personId,
+    name: input.name.trim() || "Untitled KPI",
+    metric: input.metric,
+    direction: input.direction,
+    target: input.target,
+    stretch: input.stretch,
+    cadence: input.cadence,
+    weight: Math.max(0, input.weight),
+    filter: input.filter,
+    minSample: input.minSample,
+    unit: input.unit,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.kpis.add(k);
+  return k;
+}
+
+export async function updateKpi(kid: string, patch: Partial<Kpi>) {
+  await db.kpis.update(kid, { ...patch, updatedAt: nowISO() });
+}
+
+export async function setKpiManual(kid: string, period: string, value: number | undefined) {
+  await db.transaction("rw", db.kpis, async () => {
+    const k = await db.kpis.get(kid);
+    if (!k) return;
+    const manual = { ...(k.manual ?? {}) };
+    if (value === undefined) delete manual[period];
+    else manual[period] = value;
+    await db.kpis.update(kid, { manual, updatedAt: nowISO() });
+  });
+}
+
+export async function deleteKpi(kid: string) {
+  await db.transaction("rw", [db.kpis, db.issues, db.deletions], async () => {
+    const now = nowISO();
+    await db.issues
+      .filter((i) => (i.kpiIds ?? []).includes(kid))
+      .modify((i: Issue) => {
+        i.kpiIds = (i.kpiIds ?? []).filter((x) => x !== kid);
+        if (!i.kpiIds.length) i.kpiIds = undefined;
+        i.updatedAt = now;
+      });
+    await tombstone("kpis", [kid]);
+    await db.kpis.delete(kid);
+  });
+}
+
+/** A manual adjustment (approved at once) or a bonus (a draft until approved). Always with a reason. */
+export async function addPointEntry(input: Pick<PointEntry, "personId" | "kind" | "amount" | "reason"> & Partial<Pick<PointEntry, "issueId" | "period" | "status" | "at">>) {
+  const reason = input.reason.trim();
+  if (!reason) throw new Error("A reason is required");
+  const now = nowISO();
+  const e: PointEntry = {
+    id: id(),
+    personId: input.personId,
+    issueId: input.issueId,
+    kind: input.kind,
+    amount: Math.round(input.amount * 100) / 100,
+    reason,
+    period: input.period,
+    status: input.status ?? (input.kind === "bonus" ? "draft" : "approved"),
+    at: input.at ?? now,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.pointEntries.add(e);
+  return e;
+}
+
+/** Approve or decline a draft. Approved and declined entries stay in the ledger for the record. */
+export async function decidePointEntry(eid: string, status: "approved" | "declined") {
+  await db.pointEntries.update(eid, { status, updatedAt: nowISO() });
+}
+
+/** Only drafts can be removed; anything decided is part of the record. */
+export async function deleteDraftEntry(eid: string) {
+  await db.transaction("rw", [db.pointEntries, db.deletions], async () => {
+    const e = await db.pointEntries.get(eid);
+    if (!e || e.status !== "draft") return;
+    await tombstone("pointEntries", [eid]);
+    await db.pointEntries.delete(eid);
+  });
+}
+
+export async function getPointRules(): Promise<PointRules> {
+  const r = await db.pointRules.get("default");
+  if (r) return r;
+  const now = nowISO();
+  return { ...DEFAULT_RULES, createdAt: now, updatedAt: now };
+}
+
+export async function savePointRules(patch: Partial<PointRules>) {
+  const current = await getPointRules();
+  await db.pointRules.put({ ...current, ...patch, id: "default", updatedAt: nowISO() });
 }

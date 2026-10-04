@@ -21,6 +21,7 @@ import { PRIORITIES, PROJECT_COLORS, type Issue, type Person, type Project } fro
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
 import { noteSnippet } from "@/components/notes/note-list";
 import { useDraft } from "@/components/notes/use-draft";
+import { PersonScorecard } from "@/components/points/scorecard";
 
 /** /team/[id] — one person: details, their 1:1 notes and their open work. */
 export function PersonPage() {
@@ -136,6 +137,8 @@ function Loaded({ person, onDeleted }: { person: Person; onDeleted: () => void }
           </Button>
         </div>
       </div>
+
+      <PersonScorecard person={person} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title={`${t("1:1 notes")}${oneOnOnes.length ? ` · ${oneOnOnes.length}` : ""}`}>

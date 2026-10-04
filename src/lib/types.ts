@@ -85,7 +85,13 @@ export interface Issue {
   priority: Priority;
   assigneeId?: string;
   dueDate?: string; // YYYY-MM-DD
-  estimate?: number; // optional points/hours, off by default
+  estimate?: number; // points; off by default
+  /** The estimate when work started. This is what completing the issue earns. */
+  lockedPoints?: number;
+  /** Who earns the points, as shares that sum to 1. Absent: the assignee earns all of them. */
+  credits?: IssueCredit[];
+  /** KPIs this issue counts toward on top of those whose filter matches it. */
+  kpiIds?: string[];
   labels: string[];
   order: number; // manual order inside a board column
   snoozedUntil?: string; // ISO; triage snooze
@@ -196,6 +202,131 @@ export interface Person {
   createdAt: string;
   updatedAt: string;
 }
+
+// ----- points and KPIs ---------------------------------------------------------
+// Points are earned when an issue reaches done and taken back if it is
+// reopened; the amount is the estimate locked when work started. Each person
+// has their own KPIs, scored per month or quarter against a target, weighted,
+// and rolled into one score that decides any bonus. Earned points are derived
+// from the issue history, never stored, so they cannot drift; only manual
+// adjustments and bonuses are stored, append-only, each with a reason.
+
+export interface IssueCredit {
+  personId: string;
+  share: number; // 0..1
+}
+
+export type KpiMetric =
+  | "points_delivered"
+  | "commitment_ratio"
+  | "on_time_rate"
+  | "cycle_time_median"
+  | "review_wait"
+  | "reopen_rate"
+  | "manual";
+
+export type KpiCadence = "month" | "quarter";
+export type KpiDirection = "higher" | "lower";
+
+export interface KpiFilter {
+  projectIds?: string[];
+  labels?: string[];
+  priorities?: Priority[];
+}
+
+export interface Kpi {
+  id: string;
+  personId: string;
+  name: string;
+  metric: KpiMetric;
+  direction: KpiDirection;
+  target: number;
+  /** Optional stretch goal; reaching it scores the 150% cap. */
+  stretch?: number;
+  cadence: KpiCadence;
+  /** Relative weight; a person's weights are shown as shares of their total. */
+  weight: number;
+  filter?: KpiFilter;
+  /** Rates below this many items score as "not enough data" instead of a number. */
+  minSample?: number;
+  /** Unit label for manual KPIs. */
+  unit?: string;
+  /** Manual results by period key (2026-10 or 2026-Q4). */
+  manual?: Record<string, number>;
+  archived?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PointEntryKind = "adjustment" | "bonus" | "relock";
+export type PointEntryStatus = "approved" | "draft" | "declined";
+
+export interface PointEntry {
+  id: string;
+  personId: string;
+  issueId?: string;
+  kind: PointEntryKind;
+  amount: number;
+  reason: string;
+  /** The period a bonus is for (2026-Q4). */
+  period?: string;
+  status: PointEntryStatus;
+  at: string; // ISO
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EstimationScale = "fibonacci" | "linear" | "powers" | "tshirt";
+
+export interface BonusTier {
+  /** Overall score, in percent, from which the tier applies. */
+  minScore: number;
+  /** Extra points as a percentage of the points earned in the period. */
+  bonusPct: number;
+  label: string;
+}
+
+/** Workspace-wide rules for points and bonuses (one record, id "default"). */
+export interface PointRules {
+  id: string;
+  scale: EstimationScale;
+  /** Below this overall score (percent) the payout multiplier is zero. */
+  thresholdPct: number;
+  /** Share of the payout that follows the team's score rather than the person's (percent). */
+  teamSharePct: number;
+  tiers: BonusTier[];
+  /** Show each person's score and points on the People page (alphabetical, never ranked). */
+  showOnPeoplePage: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const ESTIMATION_SCALES: { value: EstimationScale; label: string; points: { value: number; label: string }[] }[] = [
+  { value: "fibonacci", label: "Fibonacci", points: [1, 2, 3, 5, 8, 13].map((n) => ({ value: n, label: String(n) })) },
+  { value: "linear", label: "Linear 1–5", points: [1, 2, 3, 4, 5].map((n) => ({ value: n, label: String(n) })) },
+  { value: "powers", label: "Powers of two", points: [1, 2, 4, 8, 16].map((n) => ({ value: n, label: String(n) })) },
+  {
+    value: "tshirt",
+    label: "T-shirt sizes",
+    points: [
+      { value: 1, label: "XS" },
+      { value: 2, label: "S" },
+      { value: 3, label: "M" },
+      { value: 5, label: "L" },
+      { value: 8, label: "XL" },
+    ],
+  },
+];
+
+export const KPI_METRICS: { value: KpiMetric; label: string; unit: string; direction: KpiDirection; rate: boolean; hint: string }[] = [
+  { value: "points_delivered", label: "Points delivered", unit: "pts", direction: "higher", rate: false, hint: "Points from issues they finished in the period, minus any reopened." },
+  { value: "commitment_ratio", label: "Commitment kept", unit: "%", direction: "higher", rate: true, hint: "Of the points due in the period, the share finished by its end." },
+  { value: "on_time_rate", label: "On-time delivery", unit: "%", direction: "higher", rate: true, hint: "Issues finished on or before their due date." },
+  { value: "cycle_time_median", label: "Cycle time (median)", unit: "days", direction: "lower", rate: true, hint: "Days from started to done, middle value." },
+  { value: "review_wait", label: "Review wait (median)", unit: "days", direction: "lower", rate: true, hint: "Days their issues sat in review, middle value." },
+  { value: "reopen_rate", label: "Reopen rate", unit: "%", direction: "lower", rate: true, hint: "Issues finished in the period that were later reopened." },
+  { value: "manual", label: "Manual", unit: "", direction: "higher", rate: false, hint: "A result you enter yourself each period: a learning goal, interviews run, an incident review." },
+];
 
 /** A snapshot of a note's title and body, kept so edits can be undone later. */
 export interface NoteVersion {

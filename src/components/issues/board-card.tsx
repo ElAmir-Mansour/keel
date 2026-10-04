@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { issueKey, type Issue, type Person, type Project } from "@/lib/types";
 import { IssueKey, PersonAvatar, PriorityIcon } from "@/components/ui-bits";
 import { DueChip } from "./pickers";
+import { PointsChip } from "@/components/points/issue-points";
 
 // The card body is shared by the sortable card and the drag overlay so the
 // thing under the pointer looks exactly like the thing being moved.
@@ -46,7 +47,8 @@ export function CardBody({
           </Badge>
         ))}
         {issue.labels.length > 2 ? <span className="text-[10px] text-muted-foreground">+{issue.labels.length - 2}</span> : null}
-        <PersonAvatar person={assignee} size="xs" className="ms-auto" />
+        <PointsChip issue={issue} className="ms-auto" />
+        <PersonAvatar person={assignee} size="xs" className={issue.estimate === undefined && issue.lockedPoints === undefined ? "ms-auto" : undefined} />
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { createNote } from "@/lib/repo";
 import { ymd } from "@/lib/dates";
 import { HEALTHS, issueKey, riskScore, type Note } from "@/lib/types";
-import { getApiKey, streamChat } from "./client";
+import { isAiReady, streamChat } from "./client";
 import { projectContext } from "./context";
 import { buildSystem } from "./prompts";
 
@@ -106,7 +106,7 @@ export async function localWeeklyDraft(projectId: string, days = 7): Promise<str
 
 export async function buildDigest(useAI: boolean): Promise<{ body: string; ai: boolean }> {
   const projects = await db.projects.where("status").equals("active").sortBy("name");
-  if (useAI && getApiKey()) {
+  if (useAI && isAiReady()) {
     try {
       const contexts = (await Promise.all(projects.map((p) => projectContext(p.id, 7, 5_000)))).filter(Boolean).join("\n\n");
       const prompt = `Write this week's digest for every project in the context. For each project, in order, output:

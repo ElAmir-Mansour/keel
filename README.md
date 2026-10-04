@@ -43,7 +43,8 @@ dashboard to see every screen populated with eight weeks of realistic history.
 - **Timelines a steering committee can read.** Type dated lines, get a to-scale chart, export a
   PDF handout or one 16:9 slide where status is computed from dates against a baseline.
 - **An assistant that cites and asks.** Answers come with numbered citations; proposed actions
-  are approved one by one before anything is written. Your Anthropic key stays in your browser.
+  are approved one by one before anything is written. Use Claude, GPT, Gemini, any
+  OpenAI-compatible API, or a model on your own computer that needs no internet at all.
 - **Arabic and English.** A right-to-left interface is a switch in Settings; notes mix both
   scripts cleanly.
 
@@ -59,7 +60,8 @@ dashboard to see every screen populated with eight weeks of realistic history.
 | **Dashboard** | Burn-up with a scope line, cumulative flow, throughput, cycle-time distribution, milestone progress, workload by person (framed as capacity, not a scorecard). No velocity, no vanity. |
 | **Timelines** | A timeline builder for "what happened and what comes next". Type dated lines (`2026-09-12: Kickoff`, `Sep 20 – Oct 3: Wireframes #Design`, `2026-12-01: !Launch [[PLAT-12]]`) or fill in rows, pull milestones, decisions and cycles from a project, and get a to-scale chart: lanes per category, bars for phases, diamonds for milestones, a today line, and a story of what happened, what is in progress and what is next. Export as a **PDF handout**, **PNG** (light or dark), **SVG**, or copy the image or the text. |
 | **Management view** | The same timeline as one 16:9 slide for a steering meeting: the five to nine milestones you flag, lanes by theme with an on-track / at-risk / off-track verdict computed from dates against a baseline, slippage drawn as a hollow baseline diamond with a "+12d" label, a "since last review" strip from recorded reviews, and a box of decisions leadership owes with owners and dates. Status glyphs survive printing and colour blindness. Mirrors for an Arabic audience. |
-| **Assistant** | Ask questions across the vault with numbered citations that link back to the note, issue or decision. Summarise a note, improve its writing, extract tasks, draft the weekly update. Ask it to *do* things and it proposes actions (create issues, log a decision, write a note, update an issue, add a risk, build or extend a timeline) that you approve one by one before anything is written. Bring your own Anthropic key; it is stored only in your browser. |
+| **Assistant** | Ask questions across the vault with numbered citations that link back to the note, issue or decision. Summarise a note, improve its writing, extract tasks, draft the weekly update. Ask it to *do* things and it proposes actions (create issues with points, log a decision, write a note, update an issue, add a risk, build or extend a timeline) that you approve one by one before anything is written. **Any provider:** Anthropic, OpenAI, Google Gemini, OpenRouter, Groq, Mistral, DeepSeek, xAI, any OpenAI-compatible endpoint, or **offline** with Ollama or LM Studio on your own machine. One key per provider, stored only in your browser. |
+| **Points and KPIs** | Size issues on a scale you choose (Fibonacci, linear, powers of two or T-shirt). Points lock when work starts, are earned when the issue is done and taken back if it is reopened, and can be split between people. Give every person their own KPIs (points delivered, commitment kept, on-time delivery, cycle time, review wait, reopen rate, or a manual result) with targets, stretch goals and weights; an issue assigned to someone shows which of their KPIs it counts toward. A scorecard per month or quarter shows each KPI against target, the pace you would expect by today, a weighted score capped at 150%, and a ledger in which every adjustment and bonus has a written reason. Bonus tiers suggest extra points as drafts you approve. The People page lists everyone by name, never ranked. |
 | **Cycles** | Optional fixed-length cycles per project. One active, one upcoming; when a cycle ends, unfinished work rolls forward on its own. Saved views keep your favourite filters one click away. |
 | **GitHub** | Link pull requests and commits to issues by key, straight from the browser. Optionally let an opened PR move the issue to review and a merged PR close it, stamped with GitHub's own times. |
 | **Weekly digest** | Once a week, on the day you choose, a digest note is written for every active project: health, what shipped, what is next, risks and asks. The assistant writes it when you have a key; otherwise it is drafted from the facts. |
@@ -129,8 +131,8 @@ Everything lives in your browser's IndexedDB. Two optional layers protect it:
   email sign-in, paste the project URL and anon key into Keel, and sign in with a magic link.
   Each device keeps working offline and merges when online: last write wins per record, and
   deletes travel too. Nothing is shared with anyone else; row-level security scopes every row
-  to your user. If you self-host Supabase on your own domain, add its origin to
-  `connect-src` in `next.config.ts`; the content security policy blocks unlisted origins.
+  to your user. A self-hosted Supabase works over https; a plain-http one needs its origin added to
+  `connect-src` in `next.config.ts`.
 
 ### Bring your data with you
 
@@ -139,13 +141,29 @@ properties, `[[links]]` keep working), a **Linear** CSV export (teams become pro
 projects become milestones) or a **Jira** CSV export (sprints or parents become milestones). You
 see a preview before anything is written.
 
+## Use a model on your own computer
+
+Keel's assistant works with no internet when the model runs locally.
+
+1. Install [Ollama](https://ollama.com/download) and pull a model that supports tools:
+   `ollama pull llama3.1` (or `qwen3`, `gemma3`). LM Studio works too: load a model and start its
+   server on port 1234.
+2. In Keel, open **Settings → AI assistant**, choose **Ollama** or **LM Studio**, press
+   **Load models**, pick one and press **Test connection**.
+3. If you use Keel from the web rather than `pnpm local`, allow the site in Ollama with
+   `OLLAMA_ORIGINS=https://your-keel-domain ollama serve` (LM Studio: turn on *Enable CORS*).
+   Chrome asks once to let the site reach your local network.
+
+Set `OLLAMA_CONTEXT_LENGTH=16384` (or more) so long notes are not cut short.
+
 ## Deploy your own
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ElAmir-Mansour/keel)
 
 Keel is a plain Next.js app. On Vercel, import the repository and deploy; no environment
 variables are needed. To let visitors use the assistant with **your** key instead of their own,
-set `ANTHROPIC_API_KEY` and `KEEL_ALLOW_SERVER_KEY=true` — leave the second unset on a public
+set the provider's key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`,
+`GROQ_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY` or `XAI_API_KEY`) and `KEEL_ALLOW_SERVER_KEY=true` — leave the second unset on a public
 deployment, or strangers will spend your credits. Leave `KEEL_LOCAL_DIR` unset on any hosted
 deployment.
 
@@ -154,10 +172,16 @@ deployment.
 - **Storage.** Every note, issue, decision, risk, timeline and setting is stored in your browser's
   IndexedDB. Preferences such as language, and any keys you paste, are in `localStorage`. There is
   no account, no server database and no analytics or telemetry.
-- **Assistant.** Your Anthropic key is stored in the browser and sent with each request in a
-  header to Keel's single API route, which forwards that one request to Anthropic and streams the
-  reply back. The route never stores or logs the key or the conversation. Only the context shown in
-  the panel is sent, and only when you press send.
+- **Assistant.** The provider, key and model you choose are stored in the browser, one key per
+  provider. For cloud providers the request goes through Keel's single API route, which forwards
+  that one request to the provider you picked and streams the reply back, or, if you choose
+  *Directly from this browser*, your browser calls the provider itself. The route never stores or
+  logs the key or the conversation, and it never calls an address your browser chose, except a
+  local model when Keel itself runs on your machine. With Ollama or LM Studio nothing leaves your
+  computer. Only the context shown in the panel is sent, and only when you press send.
+- **Points and KPIs.** Stored with the rest of the workspace in IndexedDB. Earned points are
+  derived from issue history on every read; only adjustments and bonuses are stored, each with a
+  reason, and decided entries are never deleted.
 - **Sync.** Off until you configure it. When on, records go to the Supabase project you created,
   under your own sign-in, scoped by row-level security.
 - **GitHub.** Off until you configure it. When on, the browser calls GitHub's API for the

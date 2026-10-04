@@ -1,27 +1,21 @@
 // Shared by the browser and the route handler, so nothing in here may touch
 // window, localStorage or process.env.
 
-export const AI_MODELS = [
-  { id: "claude-opus-5", label: "Claude Opus 5", hint: "best", cost: "$5 in / $25 out per million tokens" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5", hint: "fast", cost: "$2 in / $10 out per million tokens" },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", hint: "cheapest", cost: "$1 in / $5 out per million tokens" },
-] as const;
-
-export type AiModelId = (typeof AI_MODELS)[number]["id"];
-export const DEFAULT_MODEL: AiModelId = "claude-opus-5";
-
-export function isAiModel(value: unknown): value is AiModelId {
-  return typeof value === "string" && AI_MODELS.some((m) => m.id === value);
-}
-
-export function modelLabel(id: string) {
-  return AI_MODELS.find((m) => m.id === id)?.label ?? id;
-}
+import type { ProviderId } from "./providers";
 
 /** Header the browser uses to send the user's own key. The route never logs it. */
 export const API_KEY_HEADER = "x-keel-api-key";
 
-export const STORAGE_KEYS = { apiKey: "keel.ai.apiKey", model: "keel.ai.model" } as const;
+/** localStorage keys. The legacy key and model are read once and migrated to Anthropic's slots. */
+export const STORAGE_KEYS = {
+  provider: "keel.ai.provider",
+  transport: "keel.ai.transport",
+  key: (provider: string) => `keel.ai.key.${provider}`,
+  model: (provider: string) => `keel.ai.model.${provider}`,
+  baseUrl: (provider: string) => `keel.ai.url.${provider}`,
+  legacyKey: "keel.ai.apiKey",
+  legacyModel: "keel.ai.model",
+} as const;
 
 export type AiChatRole = "user" | "assistant";
 
@@ -29,10 +23,15 @@ export type AiChatRole = "user" | "assistant";
 // Thinking blocks are echoed back untouched so a tool-use turn can continue.
 export type AiContentBlock =
   | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  // `signature` carries Gemini's thought signature, which must be echoed with the call.
+  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown>; signature?: string }
   | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean }
   | { type: "thinking"; thinking: string; signature: string }
-  | { type: "redacted_thinking"; data: string };
+  | { type: "redacted_thinking"; data: string }
+  // Opaque state one provider needs echoed on the next request (OpenAI's
+  // encrypted reasoning items, for one). Kept in order with the other blocks;
+  // every other provider's converter drops it.
+  | { type: "provider_state"; provider: string; data: unknown };
 
 /** One turn on the wire: plain text, or content blocks for tool use. */
 export interface AiChatMessage {
@@ -41,7 +40,10 @@ export interface AiChatMessage {
 }
 
 export interface AiRequestBody {
-  model: AiModelId;
+  provider: ProviderId;
+  model: string;
+  /** Only for local and custom providers, and only honoured by a relay running on this machine. */
+  baseUrl?: string;
   system: string;
   messages: AiChatMessage[];
   maxTokens?: number;
@@ -54,9 +56,10 @@ export interface AiRequestBody {
 /** Events the route streams back as newline-delimited JSON. */
 export type AiStreamEvent =
   | { t: "text"; d: string }
-  | { t: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { t: "tool_use"; id: string; name: string; input: Record<string, unknown>; signature?: string }
   | { t: "thinking"; thinking: string; signature: string }
   | { t: "redacted_thinking"; data: string }
+  | { t: "provider_state"; provider: string; data: unknown }
   | { t: "stop"; reason: string | null }
   | { t: "error"; message: string };
 
