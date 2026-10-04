@@ -8,6 +8,35 @@ include breaking changes to the exported JSON shape; the Dexie schema always upg
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-04
+
+### Added
+
+- **A graph that answers questions.** The Graph tab now draws the whole workspace, not only
+  notes: notes, issues, decisions, projects, milestones, people, risks, timelines and tags, each
+  with its own shape, connected by wikilinks and by structure (part of, assigned to, owned by,
+  supersedes, tagged). A Show menu turns each type on or off, and structure, closed work and
+  unconnected items each have a switch.
+- **Insights.** Ten lenses each answer one question and light up the answer on the graph:
+  decisions no note argues for, superseded decisions still cited, orphan notes, broken links,
+  unowned risks, projects with a bus factor of one, urgent work without a plan, brokers (the
+  items that sit on the most paths), bridges between clusters, and what changed this week.
+- **Clusters.** Related work is grouped automatically (Louvain community detection on links and
+  milestones), drawn as a tinted region and named after its milestone or most-connected item.
+  Colour by cluster or by type.
+- **Local graph and paths.** Select a node to see its connections grouped by kind, open it, or
+  show only its neighbourhood at depth 1, 2 or 3. Shift-click a second node for the shortest
+  path between them. Focus, depth and lens live in the URL, so a view can be bookmarked.
+- **List view.** The same graph as a sortable table of names, types, clusters, connections and
+  last update, for screen readers and for anyone who prefers rows to dots.
+- Find a node with `F`, change depth with `[` and `]`, fit the view, export a PNG, and highlight
+  what changed in the last 7 or 30 days. Layout positions and settings are remembered.
+
+### Changed
+
+- The graph renders on a canvas with level-of-detail labels, so it stays responsive with
+  thousands of nodes. The previous notes-only graph is gone.
+
 ## [0.4.0] — 2026-10-04
 
 ### Added
@@ -167,7 +196,9 @@ Initial release.
   and import of the whole workspace.
 - `pnpm local` to build once and serve on :3456 for a permanent install on your own machine.
 
-[Unreleased]: https://github.com/ElAmir-Mansour/keel/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ElAmir-Mansour/keel/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ElAmir-Mansour/keel/releases/tag/v0.1.0

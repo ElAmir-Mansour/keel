@@ -27,9 +27,9 @@ dashboard to see every screen populated with eight weeks of realistic history.
 |---|---|
 | ![One-slide management view with RAG status and slippage](docs/screenshots/management-slide.png) | ![A note with wikilinks and backlinks](docs/screenshots/vault.png) |
 
-| Board |
-|---|
-| ![Kanban board with drag and drop](docs/screenshots/board.png) |
+| Board | Graph |
+|---|---|
+| ![Kanban board with drag and drop](docs/screenshots/board.png) | ![Workspace graph with named clusters and insights](docs/screenshots/graph.png) |
 
 ## Why Keel
 
@@ -52,7 +52,8 @@ dashboard to see every screen populated with eight weeks of realistic history.
 
 | Area | What you get |
 |---|---|
-| **Vault** | Markdown notes with `[[wikilinks]]`, backlinks, folders, tags, pinned notes, daily notes (`T`), templates for weekly updates, 1:1s, meetings, retros, PRDs, RFCs, runbooks and post-mortems. Version history per note (browse and restore). A graph view of how notes, issues and decisions connect. |
+| **Vault** | Markdown notes with `[[wikilinks]]`, backlinks, folders, tags, pinned notes, daily notes (`T`), templates for weekly updates, 1:1s, meetings, retros, PRDs, RFCs, runbooks and post-mortems. Version history per note (browse and restore). |
+| **Graph** | The whole workspace as one map: notes, issues, decisions, projects, people, risks and tags, joined by wikilinks and by structure. Ten **insights** each answer one question on the graph (decisions no note argues for, superseded decisions still cited, orphan notes, broken links, unowned risks, bus factor of one, urgent work without a plan, brokers, bridges, this week's changes). Related work clusters into named regions. Select a node for its connections and a local graph at depth 1 to 3, shift-click another for the path between them, or switch to a sortable list. |
 | **Plan** | Projects → milestones → issues. A triage **inbox** with single-key actions (`1` accept, `2` start, `3` decline, `h` snooze), a dense issue list, a kanban **board** with drag and drop, and a **roadmap** timeline of milestones. Paste a list, get one issue per line. |
 | **Decisions** | A first-class decision log (ADR-lite): context, decision, consequences, alternatives, status, supersession. Link a decision from any note with `[[ADR-3]]`. |
 | **Risks** | A RAID register per project and across projects, scored likelihood × impact, with a 5 × 5 matrix on the dashboard. |
