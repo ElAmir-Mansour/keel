@@ -132,8 +132,9 @@ whether the browser agreed and how much space the workspace uses. Two optional l
 - **Sync across devices** (Settings → Sync): bring your own [Supabase](https://supabase.com)
   project. Run [`supabase/schema.sql`](supabase/schema.sql) once in its SQL editor, enable
   email sign-in, paste the project URL and anon key into Keel, and sign in with a magic link.
-  Each device keeps working offline and merges when online: last write wins per record, and
-  deletes travel too. Nothing is shared with anyone else; row-level security scopes every row
+  Each device keeps working offline and merges when online. When the same item changed on two
+  devices, the newer edit wins and the other copy is kept for review under Settings, so no edit
+  is lost; deletes travel too. Nothing is shared with anyone else; row-level security scopes every row
   to your user. A self-hosted Supabase works over https; a plain-http one needs its origin added to
   `connect-src` in `next.config.ts`.
 

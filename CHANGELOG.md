@@ -8,6 +8,8 @@ include breaking changes to the exported JSON shape; the Dexie schema always upg
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-04
+
 ### Added
 
 - **Persistent storage.** The first time something is written to the workspace, Keel asks the
@@ -225,7 +227,8 @@ Initial release.
   and import of the whole workspace.
 - `pnpm local` to build once and serve on :3456 for a permanent install on your own machine.
 
-[Unreleased]: https://github.com/ElAmir-Mansour/keel/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ElAmir-Mansour/keel/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ElAmir-Mansour/keel/compare/v0.2.0...v0.3.0
