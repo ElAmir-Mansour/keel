@@ -19,8 +19,22 @@ include breaking changes to the exported JSON shape; the Dexie schema always upg
   not, and no folder backup or sync holds a copy, it says plainly that the browser may clear the
   data, with a link to set up backups.
 
+### Changed
+
+- Sync remembers which versions the cloud already holds, so it does not push them back or count
+  them as waiting. Kept conflict copies are pushed in the same sync, and they are included in
+  exports and backups.
+
 ### Fixed
 
+- **Sync no longer drops an edit when two devices change the same item.** The newer edit still
+  wins, but the other copy is kept instead of being overwritten silently. A note's losing text
+  is saved in its history as a version marked "Sync conflict". Any other record (an issue,
+  decision, person, timeline and so on) is kept as a conflict you can compare field by field,
+  restore or dismiss under Settings → Sync across devices. An edit that loses to a delete is kept
+  too, and restoring it brings the record back. After each sync with conflicts, one toast says
+  how many items were affected and links to the list. Identical edits on both devices, and
+  changes made on only one side, are not conflicts.
 - The "Your data lives only in this browser" reminder is translated into Arabic.
 
 ## [0.5.0] — 2026-10-04

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/notes/confirm-dialog";
+import { SyncConflicts } from "@/components/settings/sync-conflicts";
 import { ago } from "@/lib/dates";
 import { useT } from "@/lib/i18n";
 import { clearSyncConfig, forgetCursors, getSyncConfig, saveSyncConfig, setAutoSync, signInWithEmail, signOut, syncNow, useSyncStatus, wipeRemote } from "@/lib/sync/service";
@@ -51,7 +52,7 @@ export function SyncSettings() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        {t("Bring your own Supabase project. Keel stays local-first: this browser keeps working offline, and every change is merged with your other devices when they are online. Last write wins; deletes travel too.")}
+        {t("Bring your own Supabase project. Keel stays local-first: this browser keeps working offline, and every change is merged with your other devices when they are online. When the same item changes on two devices, the newer edit wins and the other copy is kept for you to review; deletes travel too.")}
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -139,6 +140,8 @@ export function SyncSettings() {
           )}
         </div>
       ) : null}
+
+      <SyncConflicts />
 
       <ConfirmDialog
         open={confirmWipe}

@@ -134,4 +134,9 @@ export const shell: Record<string, string> = {
   // services-boot.tsx; Settings → Storage repeats both.
   "Your data lives only in this browser": "بياناتك موجودة في هذا المتصفح فقط",
   "Set up folder backups or sync so a cleared browser cannot take it with it.": "فعّل النسخ الاحتياطي إلى مجلد أو المزامنة كي لا تضيع بياناتك إذا مُسح المتصفح.",
+  // services-boot.tsx: the toast after a sync that kept a losing copy.
+  "1 item had a sync conflict": "عنصر واحد فيه تعارض مزامنة",
+  "{n} items had sync conflicts": "{n} عناصر فيها تعارض مزامنة",
+  "It changed on two devices. The newer edit won and the other copy is kept.": "تغيّر على جهازين. ساد التعديل الأحدث وحُفظت النسخة الأخرى.",
+  Review: "مراجعة",
 };

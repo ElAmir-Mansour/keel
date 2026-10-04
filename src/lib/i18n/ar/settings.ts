@@ -184,8 +184,8 @@ export const settings: Record<string, string> = {
   "Starting…": "جارٍ البدء…",
 
   // --- sync-settings.tsx ---
-  "Bring your own Supabase project. Keel stays local-first: this browser keeps working offline, and every change is merged with your other devices when they are online. Last write wins; deletes travel too.":
-    "استخدم مشروع Supabase الخاص بك. يبقى Keel محليًا أولًا: يواصل هذا المتصفح العمل دون اتصال، وتُدمج كل التغييرات مع أجهزتك الأخرى عندما تكون متصلة. الكتابة الأخيرة هي التي تسود؛ وتنتقل عمليات الحذف أيضًا.",
+  "Bring your own Supabase project. Keel stays local-first: this browser keeps working offline, and every change is merged with your other devices when they are online. When the same item changes on two devices, the newer edit wins and the other copy is kept for you to review; deletes travel too.":
+    "استخدم مشروع Supabase الخاص بك. يبقى Keel محليًا أولًا: يواصل هذا المتصفح العمل دون اتصال، وتُدمج كل التغييرات مع أجهزتك الأخرى عندما تكون متصلة. إذا تغيّر العنصر نفسه على جهازين، يسود التعديل الأحدث وتُحفظ النسخة الأخرى لتراجعها؛ وتنتقل عمليات الحذف أيضًا.",
   "Supabase URL": "عنوان Supabase",
   "Anon key": "المفتاح العام (anon)",
   "Sync configured": "تم إعداد المزامنة",
@@ -287,4 +287,29 @@ export const settings: Record<string, string> = {
   "Imported {n} notes, updated {u}": "استُوردت {n} ملاحظة وحُدّثت {u}",
   "Bundle not found": "الحزمة غير موجودة",
   "Imported {name}": "استُوردت {name}",
+
+  // --- sync-conflicts.tsx ---
+  "Sync conflicts": "تعارضات المزامنة",
+  "None. When a record changes on two devices between syncs, the newer edit wins and the other copy is kept here.":
+    "لا يوجد. إذا تغيّر سجل على جهازين بين مزامنتين، يسود التعديل الأحدث وتُحفظ النسخة الأخرى هنا.",
+  Compare: "مقارنة",
+  Dismiss: "تجاهل",
+  "Conflict dismissed": "تم تجاهل التعارض",
+  "Issue event": "حدث مهمة",
+  Update: "تحديث",
+  "Saved view": "عرض محفوظ",
+  "Note version": "نسخة ملاحظة",
+  KPI: "مؤشر أداء",
+  "Points entry": "قيد نقاط",
+  "Points rules": "قواعد النقاط",
+  "This text lost to a newer edit of the same note. It is also in the note's history.": "خسر هذا النص أمام تعديل أحدث للملاحظة نفسها. وهو موجود أيضًا في سجل الملاحظة.",
+  "The record was deleted on one device while this copy was edited on another. Restoring brings it back.":
+    "حُذف السجل على جهاز بينما عُدّلت هذه النسخة على جهاز آخر. الاستعادة تعيده.",
+  "This copy lost to a newer edit. Fields that differ from the current record:": "خسرت هذه النسخة أمام تعديل أحدث. الحقول التي تختلف عن السجل الحالي:",
+  "Kept {when}": "حُفظت {when}",
+  "This version is no longer in the note's history.": "لم تعد هذه النسخة في سجل الملاحظة.",
+  Field: "الحقل",
+  "Kept copy": "النسخة المحفوظة",
+  Current: "الحالية",
+  "The current record now matches this copy.": "السجل الحالي يطابق هذه النسخة الآن.",
 };

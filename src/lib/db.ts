@@ -18,6 +18,7 @@ import type {
   Risk,
   SavedView,
   Setting,
+  SyncConflict,
   Timeline,
   Update,
 } from "./types";
@@ -47,6 +48,7 @@ export class KeelDB extends Dexie {
   kpis!: EntityTable<Kpi, "id">;
   pointEntries!: EntityTable<PointEntry, "id">;
   pointRules!: EntityTable<PointRules, "id">;
+  syncConflicts!: EntityTable<SyncConflict, "id">;
 
   constructor(name = "keel") {
     super(name);
@@ -106,6 +108,10 @@ export class KeelDB extends Dexie {
       pointEntries: "id, personId, issueId, kind, status, at, updatedAt",
       pointRules: "id, updatedAt",
     });
+    // v9: copies that lost a sync merge, kept for review.
+    this.version(9).stores({
+      syncConflicts: "id, tbl, recordId, createdAt, updatedAt",
+    });
   }
 }
 
@@ -132,6 +138,7 @@ export const TABLE_NAMES = [
   "kpis",
   "pointEntries",
   "pointRules",
+  "syncConflicts",
 ] as const;
 
 /** Tables that take part in sync and backups (settings and tombstones are device-local). */
@@ -152,5 +159,6 @@ export const SYNCED_TABLES = [
   "kpis",
   "pointEntries",
   "pointRules",
+  "syncConflicts",
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];

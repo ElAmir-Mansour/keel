@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 import { History, RotateCcw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MarkdownView } from "@/components/markdown";
@@ -36,6 +37,11 @@ export function NoteHistory({ noteId }: { noteId: string }) {
             <li key={v.id}>
               <button type="button" className="w-full truncate text-start text-muted-foreground hover:text-foreground" onClick={() => setOpen(v)} title={fmtDate(v.savedAt, "d MMM yyyy HH:mm")}>
                 {ago(v.savedAt)} · {v.body.length} {t("chars")}
+                {v.label === "sync-conflict" ? (
+                  <Badge variant="outline" className="ms-1.5">
+                    {t("Sync conflict")}
+                  </Badge>
+                ) : null}
               </button>
             </li>
           ))}
@@ -50,7 +56,11 @@ export function NoteHistory({ noteId }: { noteId: string }) {
             <>
               <DialogHeader>
                 <DialogTitle dir="auto">{open.title}</DialogTitle>
-                <DialogDescription>{t("Saved {when}", { when: fmtDate(open.savedAt, "d MMM yyyy HH:mm") })}</DialogDescription>
+                <DialogDescription>
+                  {open.label === "sync-conflict"
+                    ? t("Kept from a sync conflict {when}: the note changed on two devices and this text lost to the newer edit.", { when: fmtDate(open.savedAt, "d MMM yyyy HH:mm") })
+                    : t("Saved {when}", { when: fmtDate(open.savedAt, "d MMM yyyy HH:mm") })}
+                </DialogDescription>
               </DialogHeader>
               <div className="rounded-md border p-3">{open.body.trim() ? <MarkdownView body={open.body} className="text-sm" /> : <p className="text-sm text-muted-foreground">{t("Empty")}</p>}</div>
               <DialogFooter>

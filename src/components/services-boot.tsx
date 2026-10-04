@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { boot as bootSync, useSyncStatus } from "@/lib/sync/service";
+import { t } from "@/lib/i18n";
+import { boot as bootSync, onSyncConflicts, useSyncStatus } from "@/lib/sync/service";
 import { boot as bootBackup, shouldNudge } from "@/lib/backup/service";
 import { bootDigest, maybeRunDigest } from "@/lib/ai/digest";
 import { bootSemantic } from "@/lib/ai/semantic";
@@ -12,7 +13,6 @@ import { bootGithub } from "@/lib/github/service";
 import { rolloverAll } from "@/lib/cycles";
 import { bootPwa } from "@/lib/pwa";
 import { bootPersistence } from "@/lib/persistence";
-import { t } from "@/lib/i18n";
 
 /** Starts the background services once per page load and nudges about data safety. */
 export function ServicesBoot() {
@@ -31,13 +31,26 @@ export function ServicesBoot() {
     void rolloverAll().then((moved) => {
       if (moved) toast(`${moved} unfinished issue${moved === 1 ? "" : "s"} rolled into the new cycle`);
     });
-    const t = setTimeout(() => {
+    const digestTimer = setTimeout(() => {
       void maybeRunDigest().then((n) => {
         if (n) toast.success("This week's digest is ready", { action: { label: "Open", onClick: () => router.push(`/notes/${n.id}`) }, duration: 15000 });
       });
     }, 10000);
-    return () => clearTimeout(t);
+    return () => clearTimeout(digestTimer);
   }, [router]);
+
+  // One toast per sync that kept a losing copy; the review list is in settings.
+  useEffect(
+    () =>
+      onSyncConflicts((n) => {
+        toast(n === 1 ? t("1 item had a sync conflict") : t("{n} items had sync conflicts", { n }), {
+          description: t("It changed on two devices. The newer edit won and the other copy is kept."),
+          action: { label: t("Review"), onClick: () => router.push("/settings#conflicts") },
+          duration: 12000,
+        });
+      }),
+    [router],
+  );
 
   useEffect(() => {
     if (!hasData) return;

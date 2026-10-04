@@ -405,13 +405,50 @@ export async function restoreNoteVersion(vid: string) {
 }
 
 export async function deleteNote(nid: string) {
-  await db.transaction("rw", [db.notes, db.noteVersions, db.deletions], async () => {
+  await db.transaction("rw", [db.notes, db.noteVersions, db.syncConflicts, db.deletions], async () => {
     const versions = (await db.noteVersions.where({ noteId: nid }).primaryKeys()) as string[];
     await tombstone("noteVersions", versions);
     await db.noteVersions.where({ noteId: nid }).delete();
+    // Conflicts that point into the history go with it; ones holding a full copy stay restorable.
+    const pointers = (await db.syncConflicts.where({ recordId: nid }).filter((c) => Boolean(c.versionId)).primaryKeys()) as string[];
+    await tombstone("syncConflicts", pointers);
+    await db.syncConflicts.bulkDelete(pointers);
     await tombstone("notes", [nid]);
     await db.notes.delete(nid);
   });
+}
+
+// ----- sync conflicts --------------------------------------------------------
+
+/** Forget a copy kept by a sync conflict. A note's version stays in its history. */
+export async function dismissConflict(cid: string) {
+  await db.transaction("rw", [db.syncConflicts, db.deletions], async () => {
+    await tombstone("syncConflicts", [cid]);
+    await db.syncConflicts.delete(cid);
+  });
+}
+
+/** Make the kept copy current again, then forget the conflict. A note keeps its current text as a version first. */
+export async function restoreConflict(cid: string) {
+  const c = await db.syncConflicts.get(cid);
+  if (!c) return;
+  if (c.versionId) {
+    await restoreNoteVersion(c.versionId);
+  } else if (c.data) {
+    const table = db.table(c.tbl);
+    const data = c.data;
+    await db.transaction("rw", [table, db.noteVersions, db.deletions], async () => {
+      const now = nowISO();
+      const cur = c.tbl === "notes" ? await db.notes.get(c.recordId) : undefined;
+      if (cur && (cur.title !== data.title || cur.body !== data.body)) {
+        await db.noteVersions.add({ id: id(), noteId: cur.id, title: cur.title, body: cur.body, savedAt: now, updatedAt: now });
+      }
+      await table.put({ ...data, updatedAt: now });
+      const tomb = await db.deletions.get(c.recordId);
+      if (tomb?.tbl === c.tbl) await db.deletions.delete(c.recordId);
+    });
+  }
+  await dismissConflict(cid);
 }
 
 /** Return today's daily note, creating it if missing. */

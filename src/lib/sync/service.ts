@@ -46,6 +46,7 @@ let status: SyncStatus = {
   auto: true,
 };
 const listeners = new Set<() => void>();
+const conflictListeners = new Set<(count: number) => void>();
 function set(patch: Partial<SyncStatus>) {
   status = { ...status, ...patch };
   for (const l of listeners) l();
@@ -57,6 +58,14 @@ function subscribe(l: () => void) {
 const SERVER_STATUS: SyncStatus = { ...status };
 export function useSyncStatus() {
   return useSyncExternalStore(subscribe, () => status, () => SERVER_STATUS);
+}
+
+/** Called once after every sync that kept losing copies, with how many records had a conflict. */
+export function onSyncConflicts(l: (count: number) => void) {
+  conflictListeners.add(l);
+  return () => {
+    conflictListeners.delete(l);
+  };
 }
 
 export function getSyncConfig() {
@@ -171,6 +180,7 @@ export async function syncNow(): Promise<void> {
       });
       localStorage.setItem(KEY_LAST, result.startedAt);
       set({ lastSyncAt: result.startedAt, lastResult: { pushed: result.pushed, pulled: result.pulled, applied: result.applied } });
+      if (result.conflicts) for (const l of conflictListeners) l(result.conflicts);
     } catch (e) {
       set({ lastError: e instanceof Error ? e.message : String(e) });
     } finally {

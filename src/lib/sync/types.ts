@@ -28,4 +28,6 @@ export interface SyncResult {
   pushed: number;
   pulled: number;
   applied: number;
+  /** Records both sides changed, where the losing copy was kept for review. */
+  conflicts: number;
 }

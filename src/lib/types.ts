@@ -336,6 +336,8 @@ export interface NoteVersion {
   body: string;
   savedAt: string;
   updatedAt: string; // same as savedAt; keeps the record syncable by version
+  /** Why the version exists when it is not an ordinary edit. */
+  label?: "sync-conflict";
 }
 
 // Timelines: a hand-made chronology of what happened and what comes next.
@@ -449,6 +451,26 @@ export interface Embedding {
   text: string;
   version: string; // the record's updatedAt when embedded
   vector: Float32Array;
+}
+
+/**
+ * A copy that lost a sync merge: the same record changed on two devices
+ * between syncs, the newer edit won, and this one is kept so it can be looked
+ * at, restored or dismissed. A losing note's text goes into its version
+ * history instead and `versionId` points at it; every other table keeps the
+ * losing record itself in `data`.
+ */
+export interface SyncConflict {
+  id: string;
+  tbl: string; // the record's table
+  recordId: string;
+  title: string; // the record's title or name, for the list
+  data?: Record<string, unknown>;
+  versionId?: string;
+  /** The winning change was a delete, so restoring brings the record back. */
+  winnerDeleted?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Tombstone left behind by every delete so sync can propagate removals. */

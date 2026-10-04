@@ -275,4 +275,6 @@ export const vault: Record<string, string> = {
   Empty: "فارغ",
   "Restore this version": "استعادة هذه النسخة",
   "Version restored": "تمت استعادة النسخة",
+  "Sync conflict": "تعارض مزامنة",
+  "Kept from a sync conflict {when}: the note changed on two devices and this text lost to the newer edit.": "حُفظت من تعارض مزامنة {when}: تغيّرت الملاحظة على جهازين وخسر هذا النص أمام التعديل الأحدث.",
 };
