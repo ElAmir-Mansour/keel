@@ -75,7 +75,7 @@ export function TeamPoints() {
                     <span className="w-10 text-end text-xs tabular-nums">{pct(pp.card.score)}</span>
                   </div>
                 </td>
-                <td className="px-3 py-1.5 text-end text-xs tabular-nums">{pct(pp.card.projected ?? pp.card.score)}</td>
+                <td className="px-3 py-1.5 text-end text-xs tabular-nums">{pct(pp.card.projected)}</td>
                 <td className="px-3 py-1.5 text-xs">
                   {pp.tier ? t(pp.tier.label) : <span className="text-muted-foreground">—</span>}
                   {pp.pendingBonuses ? <span className="ms-1 text-muted-foreground">· {t("draft")}</span> : null}

@@ -365,7 +365,13 @@ function KpiRow({ row, period, onEdit }: { row: ScoredKpi; period: string; onEdi
       <div className="grid gap-0.5">
         <AttainmentBar value={attainment} pace={pace ? pace.fraction : null} />
         <span className="text-xs text-muted-foreground">
-          {attainment !== null ? pct(attainment) : result.actual === null ? t("no data yet") : t("not enough data ({n} of {m})", { n: result.sample, m: kpi.minSample ?? 3 })}
+          {attainment !== null
+            ? pct(attainment)
+            : result.actual === null
+              ? kpi.metric === "points_delivered"
+                ? t("no estimated work yet")
+                : t("no data yet")
+              : t("not enough data ({n} of {m})", { n: result.sample, m: kpi.minSample ?? 3 })}
           {meta.rate && attainment !== null ? ` · ${t("{n} issues", { n: result.sample })}` : ""}
           {pace ? ` · ${pace.onPace ? t("on pace") : t("{n} behind pace", { n: formatResult(kpi, pace.gap) })}` : ""}
         </span>

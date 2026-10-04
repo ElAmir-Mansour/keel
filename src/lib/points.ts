@@ -194,7 +194,7 @@ export interface KpiResult {
   issueIds: string[];
 }
 
-export function kpiResult(kpi: Kpi, ctx: KpiContext, key: string): KpiResult {
+export function kpiResult(kpi: Kpi, ctx: KpiContext, key: string, today = new Date()): KpiResult {
   const r = periodRange(key);
   const rel = kpiIssues(kpi, ctx.issues);
   const meta = KPI_METRICS.find((m) => m.value === kpi.metric);
@@ -216,10 +216,15 @@ export function kpiResult(kpi: Kpi, ctx: KpiContext, key: string): KpiResult {
     case "points_delivered": {
       const lines = derivedLedger(rel, ctx.events).filter((l) => l.personId === kpi.personId && inRange(l.at, r));
       const ids = [...new Set(lines.map((l) => l.issueId!))];
-      return finish(lines.reduce((n, l) => n + l.amount, 0), ids.length, ids);
+      // Nobody can miss a points target before any of their work has points.
+      const sized = rel.some((i) => pointsOf(i) > 0 && i.status !== "cancelled");
+      return finish(sized || lines.length ? lines.reduce((n, l) => n + l.amount, 0) : null, ids.length, ids);
     }
     case "commitment_ratio": {
-      const due = rel.filter((i) => i.status !== "cancelled" && inRange(i.dueDate, r));
+      // In a running period only what is already due counts: an issue due next
+      // month has not been missed yet. Finished early still counts as kept.
+      const todayYmd = format(today, "yyyy-MM-dd");
+      const due = rel.filter((i) => i.status !== "cancelled" && inRange(i.dueDate, r) && (i.dueDate! < todayYmd || (i.status === "done" && i.completedAt !== undefined)));
       const kept = due.filter((i) => i.status === "done" && i.completedAt && new Date(i.completedAt) < r.end);
       const weightOf = (i: Issue) => pointsOf(i) * shareOf(i, kpi.personId) || 1;
       const total = due.reduce((n, i) => n + weightOf(i), 0);
@@ -323,7 +328,7 @@ export function scorecard(personId: string, kpis: Kpi[], ctx: KpiContext, key: s
   const cadence = cadenceOf(key);
   const mine = kpis.filter((k) => k.personId === personId && !k.archived && k.cadence === cadence);
   const rows = mine.map((kpi) => {
-    const result = kpiResult(kpi, ctx, key);
+    const result = kpiResult(kpi, ctx, key, today);
     return { kpi, result, attainment: result.enough && result.actual !== null ? attainment(kpi, result.actual) : null, effectiveWeight: 0 };
   });
   const scored = rows.filter((r) => r.attainment !== null);

@@ -194,4 +194,5 @@ export const points: Record<string, string> = {
   "on pace for {p} · {g} of the period gone": "على مسار {p} · مضى {g} من الفترة",
   "On pace for": "المسار المتوقع",
   "too early to project · {g} of the period gone": "مبكر للتوقّع · مضى {g} من الفترة",
+  "no estimated work yet": "لا عمل مُقدَّر بعد",
 };

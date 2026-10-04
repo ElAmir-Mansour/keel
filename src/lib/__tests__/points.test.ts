@@ -123,7 +123,9 @@ describe("KPI results", () => {
     const ctx = { issues: [a, b, c], events: [] };
     expect(kpiResult(kpi({ metric: "on_time_rate", target: 90, minSample: 2 }), ctx, "2026-10")).toMatchObject({ actual: 50, sample: 2, enough: true });
     expect(kpiResult(kpi({ metric: "cycle_time_median", direction: "lower", target: 5, minSample: 2 }), ctx, "2026-10")).toMatchObject({ actual: 6.5, sample: 2 });
-    expect(kpiResult(kpi({ metric: "commitment_ratio", target: 80, minSample: 2 }), ctx, "2026-10")).toMatchObject({ actual: 80, sample: 3 });
+    expect(kpiResult(kpi({ metric: "commitment_ratio", target: 80, minSample: 2 }), ctx, "2026-10", new Date(2026, 10, 1))).toMatchObject({ actual: 80, sample: 3 });
+    // Mid-month, the issue due on the 20th is not missed yet; the two due on the 10th are judged, and both were finished.
+    expect(kpiResult(kpi({ metric: "commitment_ratio", target: 80, minSample: 2 }), ctx, "2026-10", new Date(2026, 9, 15))).toMatchObject({ actual: 100, sample: 2 });
   });
   it("marks a rate with too few items as not enough data", () => {
     const a = done({ dueDate: "2026-10-10", completedAt: "2026-10-03T09:00:00.000Z" });
@@ -228,5 +230,26 @@ describe("projected score", () => {
     expect(card.score).toBe(0.5);
     expect(card.projected!).toBeGreaterThan(0.9);
     expect(scorecard("sara", [kpi({ target: 20, weight: 1 })], ctx, "2026-Q4", new Date(2027, 1, 1)).projected).toBeNull();
+  });
+});
+
+describe("commitment early in a period", () => {
+  it("does not count work that is not due yet, but counts work finished early", () => {
+    const sara = "sara";
+    const notDue = issue({ assigneeId: sara, estimate: 5, dueDate: "2026-12-10", status: "todo" });
+    const early = issue({ assigneeId: sara, estimate: 3, dueDate: "2026-12-10", status: "done", completedAt: "2026-10-03T09:00:00.000Z" });
+    const r = kpiResult(kpi({ metric: "commitment_ratio", target: 85, minSample: 1 }), { issues: [notDue, early], events: [] }, "2026-Q4", new Date(2026, 9, 4));
+    expect(r).toMatchObject({ actual: 100, sample: 1 });
+    const none = kpiResult(kpi({ metric: "commitment_ratio", target: 85, minSample: 1 }), { issues: [notDue], events: [] }, "2026-Q4", new Date(2026, 9, 4));
+    expect(none.actual).toBeNull();
+  });
+});
+
+describe("points target before any work is sized", () => {
+  it("reads as no data rather than zero", () => {
+    const unsized = issue({ assigneeId: "sara", status: "todo" });
+    expect(kpiResult(kpi({ metric: "points_delivered", target: 20 }), { issues: [unsized], events: [] }, "2026-Q4").actual).toBeNull();
+    const sized = issue({ assigneeId: "sara", status: "todo", estimate: 3 });
+    expect(kpiResult(kpi({ metric: "points_delivered", target: 20 }), { issues: [sized], events: [] }, "2026-Q4").actual).toBe(0);
   });
 });
