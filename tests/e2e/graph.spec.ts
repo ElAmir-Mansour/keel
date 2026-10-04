@@ -34,8 +34,14 @@ test("a lens answers its question and selecting a result opens the details panel
 test("find selects a node and shows its connections, and the PNG export downloads", async ({ page }) => {
   await seed(page);
   await page.goto("/graph");
-  await page.keyboard.press("f");
-  await expect(page.getByLabel("Find a node")).toBeFocused();
+  const find = page.getByLabel("Find a node");
+  await expect(find).toBeVisible();
+  // The shortcut is attached once the graph mounts; on a slow runner the first
+  // press can land before that, so press again until the field has focus.
+  await expect(async () => {
+    await page.keyboard.press("f");
+    await expect(find).toBeFocused({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
   await page.getByLabel("Find a node").fill("Platform sync");
   await page.getByLabel("Find a node").press("Enter");
   const panel = page.getByRole("region", { name: "Selected node" });
