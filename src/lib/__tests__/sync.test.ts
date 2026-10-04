@@ -109,6 +109,45 @@ describe("syncOnce", () => {
     expect((await b.notes.get("n1"))?.title).toBe("edited later");
   });
 
+  it("a push that fails is retried in full on the next sync", async () => {
+    const a = device();
+    const b = device();
+    await addNote(a, note("n1", "First", await now()));
+    await syncOnce(remote, a);
+    await editNote(a, "n1", { title: "Edited offline" });
+    const realPush = remote.push.bind(remote);
+    remote.push = async () => {
+      throw new Error("network down");
+    };
+    await expect(syncOnce(remote, a)).rejects.toThrow("network down");
+    // The edit never reached the remote, so it is still waiting to go.
+    expect(await pendingChanges(a)).toBe(1);
+    remote.push = realPush;
+    const r = await syncOnce(remote, a);
+    expect(r.pushed).toBe(1);
+    await syncOnce(remote, b);
+    expect((await b.notes.get("n1"))?.title).toBe("Edited offline");
+  });
+
+  it("a crash after the push but before the cursors are saved makes no false conflict", async () => {
+    const a = device();
+    await addNote(a, note("n1", "First", await now()));
+    await syncOnce(remote, a);
+    await editNote(a, "n1", { title: "Second" });
+    const realBulkPut = a.settings.bulkPut.bind(a.settings);
+    a.settings.bulkPut = (async () => {
+      throw new Error("tab closed");
+    }) as unknown as typeof a.settings.bulkPut;
+    await expect(syncOnce(remote, a)).rejects.toThrow("tab closed");
+    a.settings.bulkPut = realBulkPut;
+    // The next pull brings our own pushed copy back; it is not a conflict.
+    const r = await syncOnce(remote, a);
+    expect(r.conflicts).toBe(0);
+    expect(await a.syncConflicts.count()).toBe(0);
+    expect(await conflictVersions(a, "n1")).toHaveLength(0);
+    expect((await a.notes.get("n1"))?.title).toBe("Second");
+  });
+
   it("is idempotent when nothing changed", async () => {
     const a = device();
     await addNote(a, note("n1", "x", await now()));

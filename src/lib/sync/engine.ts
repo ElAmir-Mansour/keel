@@ -161,14 +161,14 @@ export async function syncOnce(remote: RemoteAdapter, local: KeelDB, hooks: Sync
     });
   });
 
-  // 4. Push what survived the merge. What the remote will hold is recorded
-  //    first, so a crash after the push still recognises the echo.
+  // 4. Push what survived the merge. What the remote holds is recorded only
+  //    after the push succeeds: recorded first, a failed push would mark these
+  //    edits as delivered and they would never be sent. If a crash lands
+  //    between the push and step 5, the next pull brings our own copies back
+  //    and sameContent() keeps them from being taken for conflicts.
   const toPush = [...push.values()];
+  if (toPush.length) await remote.push(toPush);
   for (const r of toPush) seen[`${r.tbl}:${r.id}`] = r.deleted_at ?? r.updated_at;
-  if (toPush.length) {
-    await local.settings.put({ key: KNOWN, value: { ...known, ...seen } });
-    await remote.push(toPush);
-  }
 
   // 5. Cursors, then prune tombstones that have now been delivered. Known
   //    versions older than the new push cursor no longer matter.
